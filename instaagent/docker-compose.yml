@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  api:
+    build: ./backend
+    container_name: instaagent-api
+    restart: always
+    env_file:
+      - ./backend/.env
+    expose:
+      - "8000"
+    depends_on:
+      - redis
+
+  # Celery Worker for background tasks
+  worker:
+    build: ./backend
+    container_name: instaagent-worker
+    restart: always
+    entrypoint: celery -A app.workers.celery_app.celery_app worker --loglevel=info
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - redis
+
+  # Next.js Frontend
+  web:
+    build: ./frontend
+    container_name: instaagent-web
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost/api/v1 # Update for production domain
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: instaagent-nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+
+  # Redis for Celery (Optional if using Upstash)
+  # Uncomment if you want to run Redis locally
+  redis:
+    image: redis:alpine
+    container_name: instaagent-redis
+    restart: always
+    expose:
+      - "6379"
+
+volumes:
+  postgres_data: # Define if database is local

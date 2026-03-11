@@ -1,0 +1,14 @@
+# InstaAgent — Hot Configuration
+# Any key added here will override the .env value.
+# Useful for feature flags, AI prompts, and rate limits without restarting.
+
+# Example: Enable/Disable features
+FEATURE_ENABLE_REELS: false
+FEATURE_ENABLE_STORIES: true
+
+# App Settings
+INSTAGRAM_SIMULATE: true
+FREE_TRIAL_POSTS: 5
+
+# WhatsApp Forwarding Toggle (Stub)
+WHATSAPP_FORWARD_ENABLED: true
