@@ -17,12 +17,16 @@ logger = logging.getLogger(__name__)
 
 class AggregatorService:
     def __init__(self):
-        self.supabase = get_supabase()
+        pass
+
+    def _get_supabase(self):
+        return get_supabase()
 
     async def fetch_and_save_posts(self, aggregator_account_id: UUID) -> int:
         """Fetch latest posts for an account and save to DB."""
+        supabase = self._get_supabase()
         # 1. Get account details
-        acc_resp = self.supabase.table("aggregator_accounts").select("*").eq("id", str(aggregator_account_id)).execute()
+        acc_resp = supabase.table("aggregator_accounts").select("*").eq("id", str(aggregator_account_id)).execute()
         if not acc_resp.data:
             logger.error(f"Aggregator account {aggregator_account_id} not found")
             return 0
@@ -30,7 +34,7 @@ class AggregatorService:
         account = acc_resp.data[0]
         username = account["instagram_username"]
         account_type = account["account_type"]
-        user_id = account["user_id"]
+        user_id = str(account["user_id"])
 
         # 2. Fetch posts based on account type
         posts = []
@@ -40,14 +44,14 @@ class AggregatorService:
             if token:
                 token = decrypt_token(token)
             else:
-                user_resp = self.supabase.table("users").select("instagram_token").eq("id", user_id).execute()
+                user_resp = supabase.table("users").select("instagram_token").eq("id", user_id).execute()
                 token = decrypt_token(user_resp.data[0].get("instagram_token")) if user_resp.data else None
             
             if token:
                 posts = await self._fetch_owned_posts(username, token)
         else:
             # Competitor: Use Business Discovery
-            user_resp = self.supabase.table("users").select("instagram_id, instagram_token").eq("id", user_id).execute()
+            user_resp = supabase.table("users").select("instagram_id, instagram_token").eq("id", user_id).execute()
             if user_resp.data:
                 ig_id = user_resp.data[0].get("instagram_id")
                 token = decrypt_token(user_resp.data[0].get("instagram_token"))
@@ -59,6 +63,7 @@ class AggregatorService:
         for p in posts:
             post_data = {
                 "aggregator_account_id": str(aggregator_account_id),
+                "user_id": user_id, # Populating user_id for RLS optimization
                 "ig_post_id": p["id"],
                 "caption": p.get("caption"),
                 "media_url": p.get("media_url"),
@@ -70,22 +75,38 @@ class AggregatorService:
             }
             try:
                 # Upsert based on ig_post_id and aggregator_account_id
-                self.supabase.table("aggregated_posts").upsert(post_data, on_conflict="aggregator_account_id, ig_post_id").execute()
+                supabase.table("aggregated_posts").upsert(post_data, on_conflict="aggregator_account_id, ig_post_id").execute()
                 saved_count += 1
             except Exception as e:
                 logger.error(f"Error saving post {p['id']}: {e}")
 
         # 4. Update last_synced_at
-        self.supabase.table("aggregator_accounts").update({"last_synced_at": datetime.now(timezone.utc).isoformat()}).eq("id", str(aggregator_account_id)).execute()
+        supabase.table("aggregator_accounts").update({"last_synced_at": datetime.now(timezone.utc).isoformat()}).eq("id", str(aggregator_account_id)).execute()
         
         return saved_count
 
     async def generate_ai_insights(self, account_ids: List[UUID], user_id: UUID) -> Dict[str, Any]:
         """Use Claude to analyze posts across multiple accounts and generate trends/ideas."""
-        # 1. Fetch recent posts from these accounts in a single query (Fix N+1)
-        resp = self.supabase.table("aggregated_posts")\
+        supabase = self._get_supabase()
+        user_id_str = str(user_id)
+        
+        # 1. Verify ownership (Critical Hardening)
+        ownership_check = supabase.table("aggregator_accounts") \
+            .select("id") \
+            .in_("id", [str(aid) for aid in account_ids]) \
+            .eq("user_id", user_id_str) \
+            .execute()
+        
+        owned_ids = {row["id"] for row in (ownership_check.data or [])}
+        valid_ids = [aid for aid in account_ids if str(aid) in owned_ids]
+        
+        if not valid_ids:
+            return {"error": "No valid accounts found or access denied"}
+
+        # 2. Fetch recent posts from these accounts in a single query (Fix N+1)
+        resp = supabase.table("aggregated_posts")\
             .select("caption, likes, comments, hashtags, posted_at")\
-            .in_("aggregator_account_id", [str(aid) for aid in account_ids])\
+            .in_("aggregator_account_id", [str(aid) for aid in valid_ids])\
             .order("posted_at", desc=True)\
             .limit(30)\
             .execute()
@@ -94,9 +115,15 @@ class AggregatorService:
         if not post_data:
             return {"error": "No post data found for analysis"}
 
-        # 2. Prepare prompt for Claude (Sanitized)
+        # 3. Prepare prompt for Claude (Sanitized + Time Awareness)
+        def _get_hour(ts):
+            try:
+                return datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%H:00")
+            except:
+                return "Unknown"
+
         post_summary = "\n".join([
-            f"Post: {sanitize_input(p.get('caption', ''))[:100]}... | Likes: {p['likes']} | Comments: {p['comments']}"
+            f"Post: {sanitize_input(p.get('caption', ''))[:80]}... | Likes: {p['likes']} | Comments: {p['comments']} | Time: {_get_hour(p.get('posted_at', ''))}"
             for p in post_data
         ])
 
@@ -138,15 +165,15 @@ Return ONLY this JSON structure:
         cost_paise = round((tokens_in * (3/1000000) + tokens_out * (15/1000000)) * 83 * 100, 2)
 
         usage_log = {
-            "user_id": str(user_id),
+            "user_id": user_id_str,
             "action": "aggregator_ai_analysis",
             "api_service": "anthropic_claude",
-            "month_year": datetime.now().strftime("%Y-%m"),
+            "month_year": datetime.now(timezone.utc).strftime("%Y-%m"),
             "cost_paise": cost_paise,
             "tokens_in": tokens_in,
             "tokens_out": tokens_out
         }
-        self.supabase.table("usage_logs").insert(usage_log).execute()
+        supabase.table("usage_logs").insert(usage_log).execute()
 
         raw = response.content[0].text.strip()
         raw = re.sub(r"^```json\s*", "", raw)

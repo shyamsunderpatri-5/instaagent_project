@@ -10,6 +10,12 @@
 -- 1. Update Users Table
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT false;
 
+-- Create is_admin() helper for RLS
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean AS $$
+    SELECT COALESCE(is_admin, false) FROM users WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
 -- 2. Create Aggregator Accounts Table
 CREATE TABLE IF NOT EXISTS aggregator_accounts (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,6 +33,7 @@ CREATE TABLE IF NOT EXISTS aggregator_accounts (
 CREATE TABLE IF NOT EXISTS aggregated_posts (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregator_account_id UUID      REFERENCES aggregator_accounts(id) ON DELETE CASCADE,
+    user_id             UUID        REFERENCES users(id) ON DELETE CASCADE, -- New: For RLS perf
     ig_post_id          TEXT        NOT NULL,
     caption             TEXT,
     media_url           TEXT,
@@ -46,18 +53,13 @@ ALTER TABLE aggregated_posts    ENABLE ROW LEVEL SECURITY;
 -- Policies for aggregator_accounts
 CREATE POLICY aggregator_accounts_user_policy ON aggregator_accounts
     FOR ALL USING (
-        user_id = auth.uid() OR 
-        (SELECT is_admin FROM users WHERE id = auth.uid()) = true
+        user_id = auth.uid() OR is_admin()
     );
 
 -- Policies for aggregated_posts
 CREATE POLICY aggregated_posts_user_policy ON aggregated_posts
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM aggregator_accounts 
-            WHERE aggregator_accounts.id = aggregated_posts.aggregator_account_id 
-            AND (aggregator_accounts.user_id = auth.uid() OR (SELECT is_admin FROM users WHERE id = auth.uid()) = true)
-        )
+        user_id = auth.uid() OR is_admin()
     );
 
 -- Trigger for updated_at
@@ -68,3 +70,4 @@ CREATE TRIGGER aggregator_accounts_updated_at
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_aggregator_user_id ON aggregator_accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_aggregated_posts_account_id ON aggregated_posts(aggregator_account_id);
+CREATE INDEX IF NOT EXISTS idx_aggregated_posts_user_id ON aggregated_posts(user_id);

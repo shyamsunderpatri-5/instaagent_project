@@ -13,6 +13,11 @@ from app.models.aggregator import (
 from app.services.aggregator_service import aggregator_service
 from app.workers.aggregator_worker import sync_aggregator_posts
 from app.utils.crypto import encrypt_token
+from app.config import settings
+from app.db.redis_client import get_redis
+
+MAX_ACCOUNTS_PER_USER = 10
+INSIGHTS_COOLDOWN_SECONDS = 300 # 5 minutes
 
 router = APIRouter()
 
@@ -28,8 +33,22 @@ async def add_account(
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
+    user_id = str(current_user["id"])
+    
+    # Critical: Enforce per-user account limit
+    existing = supabase.table("aggregator_accounts") \
+        .select("id", count="exact") \
+        .eq("user_id", user_id) \
+        .execute()
+    
+    if (existing.count or 0) >= MAX_ACCOUNTS_PER_USER:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Maximum {MAX_ACCOUNTS_PER_USER} tracked accounts allowed. Remove one to add another."
+        )
+
     acc_data = account.dict()
-    acc_data["user_id"] = str(current_user["id"])
+    acc_data["user_id"] = user_id
     if acc_data.get("access_token"):
         acc_data["access_token"] = encrypt_token(acc_data["access_token"])
     
@@ -57,7 +76,7 @@ async def delete_account(
 @router.get("/posts", response_model=List[AggregatedPost])
 async def get_posts(
     account_ids: Optional[List[UUID]] = Query(None),
-    limit: int = 50,
+    limit: int = Query(default=50, le=200, ge=1),
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
@@ -77,7 +96,22 @@ async def get_insights(
     req: AIInsightRequest, 
     current_user: dict = Depends(check_aggregator_plan)
 ):
-    insights = await aggregator_service.generate_ai_insights(req.account_ids, user_id=current_user["id"])
+    # Critical: Enforce AI insight rate limit (Redis-backed cooldown)
+    redis_client = get_redis()
+    user_id = str(current_user["id"])
+    rate_key = f"aggregator_insights_cooldown:{user_id}"
+    
+    if redis_client.exists(rate_key):
+        ttl = redis_client.ttl(rate_key)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Please wait {ttl} seconds before generating insights again."
+        )
+    
+    # Set cooldown
+    redis_client.setex(rate_key, INSIGHTS_COOLDOWN_SECONDS, "1")
+    
+    insights = await aggregator_service.generate_ai_insights(req.account_ids, user_id=user_id)
     if "error" in insights:
         raise HTTPException(status_code=404, detail=insights["error"])
     return insights

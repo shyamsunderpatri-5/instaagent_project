@@ -1,7 +1,7 @@
 # backend/app/workers/aggregator_worker.py
 import asyncio
 import logging
-from celery_app import celery_app
+from app.workers.celery_app import celery_app
 from app.services.aggregator_service import aggregator_service
 from app.db.supabase import get_supabase
 
@@ -23,15 +23,23 @@ def sync_aggregator_posts(aggregator_account_id: str):
 
 @celery_app.task(name="sync_all_aggregator_accounts")
 def sync_all_aggregator_accounts():
-    """Celery task to sync all active aggregator accounts."""
-    logger.info("Syncing all active aggregator accounts")
+    """Celery task to sync all active aggregator accounts with plan filtering and staggering."""
+    logger.info("Starting batch sync for all active aggregator accounts")
     supabase = get_supabase()
     
-    # Fetch all aggregator accounts
-    resp = supabase.table("aggregator_accounts").select("id").execute()
-    if resp.data:
-        for acc in resp.data:
-            # Trigger individual task for each account to allow parallel processing
-            sync_aggregator_posts.delay(acc["id"])
+    # High: Only sync accounts for users on the 'aggregator' plan who are active
+    resp = supabase.table("aggregator_accounts") \
+        .select("id, users!inner(plan, is_active)") \
+        .eq("users.plan", "aggregator") \
+        .eq("users.is_active", True) \
+        .execute()
     
-    return f"Triggered sync for {len(resp.data) if resp.data else 0} accounts"
+    accounts = resp.data or []
+    for i, acc in enumerate(accounts):
+        # Medium: Stagger by 2 seconds to avoid hitting Instagram API rate limits simultaneously
+        sync_aggregator_posts.apply_async(
+            args=[acc["id"]], 
+            countdown=i * 2
+        )
+    
+    return f"Triggered staggered sync for {len(accounts)} accounts"

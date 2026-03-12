@@ -74,11 +74,11 @@ export const AggregatorView = ({ token, user }) => {
     <div className="fade-up" style={{ padding: 40, maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
         <div>
-          <div style={{ fontSize: 12, color: T.primary, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>Aggregator</div>
-          <h1 style={{ fontFamily: T.fontHead, fontSize: 32, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>Market Intelligence</h1>
+          <div style={{ fontSize: 12, color: T.primary, fontWeight: 800, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 8 }}>{t("aggregator.subtitle")}</div>
+          <h1 style={{ fontFamily: T.fontHead, fontSize: 32, fontWeight: 800, color: T.text, letterSpacing: "-0.02em" }}>{t("aggregator.title")}</h1>
         </div>
         <button onClick={() => setShowAdd(true)} style={{ background: T.primary, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-          {I.create} Add Account
+          {I.create} {t("aggregator.add_account")}
         </button>
       </div>
 
@@ -86,23 +86,26 @@ export const AggregatorView = ({ token, user }) => {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {/* Tracked Accounts */}
           <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 24 }}>
-            <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>Tracked Accounts</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>{t("aggregator.tracked_accounts")}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {accounts.map(acc => (
                 <div key={acc.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, background: T.surfaceAlt, borderRadius: 14, border: `1px solid ${T.border}` }}>
                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: acc.account_type === "owned" ? T.primaryDim : T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: acc.account_type === "owned" ? T.primary : T.accent }}>{I.ig}</div>
                    <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700 }}>@{acc.instagram_username}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted }}>{acc.account_type}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>{t(`aggregator.type_${acc.account_type}`)}</div>
                    </div>
-                   <Badge status={acc.last_synced_at ? "active" : "trialing"} />
+                   <Badge 
+                     status={acc.last_synced_at ? "active" : "trialing"} 
+                     text={acc.last_synced_at ? t("aggregator.synced") : t("aggregator.syncing")}
+                   />
                 </div>
               ))}
-              {accounts.length === 0 && <div style={{ textAlign: "center", color: T.textDim, padding: 20, fontSize: 13 }}>No accounts tracked yet.</div>}
+              {accounts.length === 0 && <div style={{ textAlign: "center", color: T.textDim, padding: 20, fontSize: 13 }}>{t("aggregator.no_accounts")}</div>}
             </div>
             {accounts.length > 0 && (
               <button disabled={syncing} onClick={generateInsights} style={{ width: "100%", marginTop: 20, padding: 12, background: syncing ? T.surfaceAlt : T.accent, color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                {syncing ? <Spinner color="#fff" /> : I.zap} Generate AI Insights
+                {syncing ? <Spinner color="#fff" /> : I.zap} {t("aggregator.generate_insights")}
               </button>
             )}
           </div>
@@ -110,10 +113,10 @@ export const AggregatorView = ({ token, user }) => {
           {/* AI Insights Display */}
           {insights && (
             <div className="fade-up" style={{ background: `linear-gradient(135deg, ${T.surfaceAlt}, ${T.bg})`, border: `2px solid ${T.primary}40`, borderRadius: 20, padding: 24 }}>
-               <h3 style={{ color: T.primary, fontSize: 15, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>{I.zap} CLAUDE STRATEGY</h3>
+               <h3 style={{ color: T.primary, fontSize: 15, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>{I.zap} {t("aggregator.ai_strategy")}</h3>
                
                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>POST IDEAS</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>{t("aggregator.post_ideas")}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {insights.post_ideas?.map((idea, i) => (
                       <div key={i} style={{ fontSize: 13, background: `${T.primary}10`, padding: "8px 12px", borderRadius: 8, borderLeft: `3px solid ${T.primary}` }}>{idea}</div>
@@ -122,7 +125,7 @@ export const AggregatorView = ({ token, user }) => {
                </div>
 
                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>Market Trends</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>{t("aggregator.market_trends")}</div>
                   <ul style={{ paddingLeft: 16 }}>
                     {insights.trend_summaries?.map((trend, i) => (
                       <li key={i} style={{ fontSize: 13, color: T.text, marginBottom: 4 }}>{trend}</li>
@@ -135,12 +138,12 @@ export const AggregatorView = ({ token, user }) => {
 
         {/* Feed */}
         <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 24 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>Competitive Feed</h2>
+          <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>{t("aggregator.feed_title")}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
             {posts.map(post => (
               <div key={post.id} style={{ background: T.surfaceAlt, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.border}` }}>
                 {post.media_url ? (
-                  <img src={post.media_url} style={{ width: "100%", height: 180, objectFit: "cover" }} />
+                  <img src={post.media_url} alt="" style={{ width: "100%", height: 180, objectFit: "cover" }} />
                 ) : (
                   <div style={{ width: "100%", height: 180, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>📷</div>
                 )}
@@ -157,7 +160,7 @@ export const AggregatorView = ({ token, user }) => {
                 </div>
               </div>
             ))}
-            {posts.length === 0 && <div style={{ gridColumn: "span 2", textAlign: "center", padding: 40, color: T.textDim }}>Fetching market data...</div>}
+            {posts.length === 0 && <div style={{ gridColumn: "span 2", textAlign: "center", padding: 40, color: T.textDim }}>{t("aggregator.fetching_data")}</div>}
           </div>
         </div>
       </div>
@@ -165,26 +168,26 @@ export const AggregatorView = ({ token, user }) => {
       {/* Add Modal */}
       {showAdd && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-           <div className="fade-up" style={{ background: T.surface, padding: 32, borderRadius: 24, width: "100%", maxWidth: 400, border: `1px solid ${T.border}` }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Add Account</h2>
-              <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 24 }}>Track your own profile or a competitor.</p>
+           <div key="add-account-form" className="fade-up" style={{ background: T.surface, padding: 32, borderRadius: 24, width: "100%", maxWidth: 400, border: `1px solid ${T.border}` }}>
+              <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>{t("aggregator.add_modal_title")}</h2>
+              <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 24 }}>{t("aggregator.add_modal_desc")}</p>
               
               <form onSubmit={handleAddAccount}>
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Instagram Username</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", display: "block", marginBottom: 6 }}>{t("aggregator.ig_username")}</label>
                   <input required value={newAcc.username} onChange={e => setNewAcc({...newAcc, username: e.target.value.replace("@", "")})} placeholder="username" style={{ width: "100%", padding: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, color: T.text }} />
                 </div>
                 <div style={{ marginBottom: 24 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", display: "block", marginBottom: 6 }}>Account Type</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textDim, textTransform: "uppercase", display: "block", marginBottom: 6 }}>{t("aggregator.account_type")}</label>
                   <select value={newAcc.type} onChange={e => setNewAcc({...newAcc, type: e.target.value})} style={{ width: "100%", padding: 12, background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 10, color: T.text }}>
-                    <option value="competitor">Competitor (Business Discovery)</option>
-                    <option value="owned">Owned (Personal/Business)</option>
+                    <option value="competitor">{t("aggregator.type_competitor_full")}</option>
+                    <option value="owned">{t("aggregator.type_owned_full")}</option>
                   </select>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                  <button type="button" onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 12, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 12, color: T.text, fontWeight: 600 }}>Cancel</button>
+                  <button type="button" onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 12, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 12, color: T.text, fontWeight: 600 }}>{t("common.cancel")}</button>
                   <button disabled={syncing} type="submit" style={{ flex: 1, padding: 12, background: T.primary, border: "none", borderRadius: 12, color: "#fff", fontWeight: 700 }}>
-                    {syncing ? <Spinner color="#fff" /> : "Track"}
+                    {syncing ? <Spinner color="#fff" /> : t("aggregator.track_btn")}
                   </button>
                 </div>
               </form>
