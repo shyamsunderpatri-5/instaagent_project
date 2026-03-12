@@ -1,36 +1,58 @@
-# Stage 1: Building the production build
-FROM node:20-alpine AS builder
+# ═══════════════════════════════════════════════════════════════════════════════
+# InstaAgent Frontend — Enterprise Dockerfile
+# Node 22 · Multi-stage · Non-root user · Standalone output
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Stage 1: Install dependencies ─────────────────────────────────────────────
+FROM node:22-alpine AS deps
+
+RUN apk add --no-cache libc6-compat curl
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm cache clean --force
+
+# ── Stage 2: Build the application ────────────────────────────────────────────
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package.json package-lock.json ./
+# Accept build-time API URL
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Install dependencies
-RUN npm ci
-
-# Copy the rest of the application code
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the Next.js application
+# Build Next.js with standalone output (smallest possible image)
 RUN npm run build
 
-# Stage 2: Serve the application
-FROM node:20-alpine AS runner
+# ── Stage 3: Production runtime ───────────────────────────────────────────────
+FROM node:22-alpine AS runner
+
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# Set environment to production
-ENV NODE_ENV production
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
 
-# Copy necessary files from builder
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
-# Expose port 3000
+# Copy only what Next.js needs to run (standalone mode)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+USER nextjs
+
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/ || exit 1
+
+CMD ["node", "server.js"]

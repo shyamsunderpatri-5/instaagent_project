@@ -1,27 +1,69 @@
-# === Dependencies & Virtual Envs ===
-node_modules/
-instaagent/frontend/node_modules/
-venv/
-.venv/
-env/
+# ═══════════════════════════════════════════════════════════════════════════════
+# InstaAgent — .gitignore
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# === Next.js Build & Artifacts ===
-.next/
-out/
-.next-boost.json
+# ── Virtual Environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+.env.venv
 
-# === Environment & Secrets ===
+# ── Environment Variables (CRITICAL — never commit these) ────────────────────
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.env.bak
+backend/.env
+frontend/.env.local
 
-# === IDEs & Editors ===
+# ── Next.js ───────────────────────────────────────────────────────────────────
+.next/
+out/
+.next-boost.json
+frontend/node_modules/
+node_modules/
+
+# ── Testing & Coverage ────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.log
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat.pid
+/tmp/celerybeat-schedule
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
@@ -30,28 +72,36 @@ out/
 .pydevproject
 .settings/
 
-# === OS & Maintenance ===
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 ehthumbs.db
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 *.tmp
 *.temp
 
-# === Testing & Quality ===
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-.ipynb_checkpoints/
+# ── Docker volumes (local dev) ────────────────────────────────────────────────
+postgres_data/
+redis_data/
 
-# === Builds & Dist ===
-dist/
-build/
-*.egg-info/
+# ── Builds ────────────────────────────────────────────────────────────────────
 /site
+*.egg-info/
 
-# === User Backups ===
-/9th march back up
+# ── Backup folders ────────────────────────────────────────────────────────────
+*back up*/
+*backup*/
+*_backup/
+
+# ── SSL certs (manage via certbot, never commit) ──────────────────────────────
+*.pem
+*.key
+*.crt
+*.csr
+nginx/ssl/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.pid
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vercel
