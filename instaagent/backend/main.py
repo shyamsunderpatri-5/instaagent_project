@@ -28,7 +28,7 @@ from sentry_sdk.integrations.redis import RedisIntegration
 
 # ── Application modules ───────────────────────────────────────────────────────
 from app.config import settings, start_config_watcher
-from app.api import auth, posts, instagram, subscription, usage, webhooks, analytics, features, admin
+from app.api import auth, posts, instagram, subscription, usage, webhooks, analytics, features, admin, aggregator
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -229,6 +229,7 @@ app.include_router(usage.router,        prefix="/api/v1/usage",        tags=["Us
 app.include_router(analytics.router,    prefix="/api/v1/analytics",    tags=["Analytics"])
 app.include_router(webhooks.router,     prefix="/api/v1/webhooks",     tags=["Webhooks"])
 app.include_router(admin.router,        prefix="/api/v1/admin",        tags=["Admin"])
+app.include_router(aggregator.router,   prefix="/api/v1/aggregator",   tags=["Aggregator"])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

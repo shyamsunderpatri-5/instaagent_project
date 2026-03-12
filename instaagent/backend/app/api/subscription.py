@@ -71,6 +71,19 @@ def _build_plan_config():
                 "Priority support",
             ],
         },
+        "aggregator": {
+            "amount_paise": settings.PLAN_AGGREGATOR_PRICE * 100,
+            "price": settings.PLAN_AGGREGATOR_PRICE,
+            "name": "Aggregator",
+            "posts_limit": 150,
+            "razorpay_plan_id": "",
+            "features_list": [
+                "Track Competitors",
+                "AI Trend Analysis",
+                "Daily Sync",
+                "150 Posts/month Tracking",
+            ],
+        },
     }
 
 

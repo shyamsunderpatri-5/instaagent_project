@@ -8,6 +8,7 @@ const NAV_IDS = [
   { id: "analytics", labelKey: "analytics", icon: I.analytics, featureKey: "enable_analytics" },
   { id: "billing",   labelKey: "billing",   icon: I.billing,   featureKey: "enable_billing" },
   { id: "telegram",  labelKey: "telegram",  icon: I.telegram, featureKey: "enable_telegram_bot" },
+  { id: "aggregator",labelKey: "aggregator",icon: I.aggregator, featureKey: "enable_aggregator" },
   { id: "admin",     labelKey: "admin",     icon: I.globe,     adminOnly: true },
   { id: "settings",  labelKey: "settings",  icon: I.settings },
 ];

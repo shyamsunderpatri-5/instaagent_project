@@ -6,6 +6,7 @@
 # Beat tasks run on IST timezone (Asia/Kolkata).
 # ─────────────────────────────────────────────────────────────────────────────
 
+import os
 from celery import Celery
 from celery.schedules import crontab
 
@@ -21,6 +22,7 @@ celery_app = Celery(
         "app.workers.instagram_token_refresher",
         "app.workers.telegram_broadcast",
         "app.workers.whatsapp_worker",
+        "app.workers.aggregator_worker",
     ],
 )
 
@@ -58,14 +60,18 @@ celery_app.conf.update(
     broker_use_ssl=_ssl,
     redis_backend_use_ssl=_ssl,
 
-    # ── Windows Compatibility ─────────────────────────────────────────────────
     # On Windows, Python uses 'spawn' for multiprocessing which breaks Celery's
     # default prefork pool. Use 'solo' pool for local dev.
-    # In production (Linux), remove this line — prefork works fine there.
-    worker_pool="solo",
+    # In production (Linux), we use the default prefork pool for performance.
+    worker_pool="solo" if os.name == "nt" else None,
 
     # ── Beat Schedule ─────────────────────────────────────────────────────────
     beat_schedule={
+        # Every 6 hours — sync all aggregator accounts
+        "sync-aggregator-accounts": {
+            "task":     "sync_all_aggregator_accounts",
+            "schedule": crontab(minute=0, hour="*/6"),
+        },
         # Every 60 seconds — check for scheduled posts due for publishing
         "publish-scheduled-posts": {
             "task":     "app.workers.post_worker.publish_scheduled_posts",

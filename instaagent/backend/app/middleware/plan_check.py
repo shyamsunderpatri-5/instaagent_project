@@ -9,6 +9,7 @@ PLAN_LIMITS = {
     "starter": 30,
     "growth": 90,
     "agency": 300,
+    "aggregator": 150,
 }
 
 
@@ -66,3 +67,12 @@ async def get_quota_info(user_id: str, plan: str):
         "warning": remaining <= 2 and remaining > 0,
         "critical": remaining == 0
     }
+
+async def check_aggregator_plan(user: dict = Depends(get_current_user)):
+    """Ensure user is on the aggregator plan (999)."""
+    if user.get("plan") != "aggregator" and not user.get("is_admin"):
+        raise HTTPException(
+            status_code=403, 
+            detail="Aggregator feature requires the ₹999/month plan."
+        )
+    return user

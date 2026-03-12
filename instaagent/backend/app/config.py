@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     PLAN_GROWTH_POSTS:  int = 90
     PLAN_AGENCY_PRICE:  int = 1999
     PLAN_AGENCY_POSTS:  int = 300
+    PLAN_AGGREGATOR_PRICE: int = 999     # ₹/month (Aggregator bundle)
 
     # ── FEATURE FLAGS ─────────────────────────────────────────────────────────
     # Each flag maps to FEATURE_<KEY>=true|false in .env
@@ -113,11 +114,10 @@ class Settings(BaseSettings):
     FEATURE_ENABLE_STORIES:           bool = True
     FEATURE_ENABLE_AI_COMMENT_REPLY:  bool = True
     FEATURE_ENABLE_IG_DM_FORWARD:     bool = True
-    FEATURE_ENABLE_ANALYTICS:         bool = True
     FEATURE_ENABLE_TOKEN_REFRESH:     bool = True
-    FEATURE_ENABLE_BILLING:           bool = True
     FEATURE_ENABLE_WEEKLY_REPORTS:    bool = True
     FEATURE_ENABLE_MONTHLY_REPORTS:   bool = True
+    FEATURE_ENABLE_AGGREGATOR:       bool = True    # New: Competition Aggregator
 
     # ── WhatsApp (MVP Stub) ───────────────────────────────────────────────────
     WHATSAPP_FORWARD_ENABLED:         bool = True
@@ -142,6 +142,7 @@ class Settings(BaseSettings):
             "enable_billing":           self.FEATURE_ENABLE_BILLING,
             "enable_weekly_reports":    self.FEATURE_ENABLE_WEEKLY_REPORTS,
             "enable_monthly_reports":   self.FEATURE_ENABLE_MONTHLY_REPORTS,
+            "enable_aggregator":        self.FEATURE_ENABLE_AGGREGATOR,
         }
 
     class Config:

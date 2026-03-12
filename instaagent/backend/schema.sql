@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     trial_end           TIMESTAMPTZ,
     trial_used          BOOLEAN     DEFAULT false,
     is_active           BOOLEAN     DEFAULT true,
+    is_admin            BOOLEAN     DEFAULT false,
     default_enhancement BOOLEAN     DEFAULT true,
     has_seen_guidelines BOOLEAN     DEFAULT false,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
@@ -155,5 +156,56 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER users_updated_at
-    BEFORE UPDATE ON users
+
+-- ── Aggregator Tables ───────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS aggregator_accounts (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID        REFERENCES users(id) ON DELETE CASCADE,
+    instagram_username  TEXT        NOT NULL,
+    account_type        TEXT        NOT NULL DEFAULT 'owned',
+    access_token        TEXT,
+    last_synced_at      TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, instagram_username)
+);
+
+CREATE TABLE IF NOT EXISTS aggregated_posts (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    aggregator_account_id UUID      REFERENCES aggregator_accounts(id) ON DELETE CASCADE,
+    ig_post_id          TEXT        NOT NULL,
+    caption             TEXT,
+    media_url           TEXT,
+    media_type          TEXT,
+    likes               INTEGER     DEFAULT 0,
+    comments            INTEGER     DEFAULT 0,
+    hashtags            TEXT[],
+    posted_at           TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(aggregator_account_id, ig_post_id)
+);
+
+ALTER TABLE aggregator_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE aggregated_posts    ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY aggregator_accounts_user_policy ON aggregator_accounts
+    FOR ALL USING (
+        user_id = auth.uid() OR 
+        (SELECT is_admin FROM users WHERE id = auth.uid()) = true
+    );
+
+CREATE POLICY aggregated_posts_user_policy ON aggregated_posts
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM aggregator_accounts 
+            WHERE aggregator_accounts.id = aggregated_posts.aggregator_account_id 
+            AND (aggregator_accounts.user_id = auth.uid() OR (SELECT is_admin FROM users WHERE id = auth.uid()) = true)
+        )
+    );
+
+CREATE TRIGGER aggregator_accounts_updated_at
+    BEFORE UPDATE ON aggregator_accounts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE INDEX IF NOT EXISTS idx_aggregator_user_id ON aggregator_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_aggregated_posts_account_id ON aggregated_posts(aggregator_account_id);

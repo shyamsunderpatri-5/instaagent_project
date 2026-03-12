@@ -5,6 +5,7 @@ import { api } from "../common/api";
 
 export const AdminView = ({ token }) => {
   const [stats, setStats] = useState(null);
+  const [aggStats, setAggStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,9 +14,11 @@ export const AdminView = ({ token }) => {
     Promise.all([
         api.get("/api/v1/admin/dashboard", token),
         api.get("/api/v1/admin/users", token),
-    ]).then(([s, u]) => {
+        api.get("/api/v1/aggregator/admin/stats", token).catch(() => null),
+    ]).then(([s, u, as]) => {
         setStats(s.stats);
         setUsers(u.users);
+        setAggStats(as);
         setLoading(false);
     });
   }, [token]);
@@ -31,6 +34,8 @@ export const AdminView = ({ token }) => {
           <StatCard label="Total Sellers" value={stats?.total_users} icon={I.dash} color={T.primary} loading={loading} />
           <StatCard label="Total Posts" value={stats?.total_posts} icon={I.posts} color={T.accent} loading={loading} />
           <StatCard label="Active Subs" value={stats?.active_subscriptions} icon={I.billing} color={T.green} loading={loading} />
+          <StatCard label="Shared Accounts" value={aggStats?.total_tracked_accounts} icon={I.aggregator} color={T.primary} loading={loading} />
+          <StatCard label="Market Data" value={aggStats?.total_aggregated_posts} icon={I.posts} color={T.gold} loading={loading} />
        </div>
 
        <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24 }}>
