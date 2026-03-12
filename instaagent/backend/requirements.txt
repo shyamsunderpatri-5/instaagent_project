@@ -22,7 +22,7 @@ email-validator==2.2.0
 # Database (Supabase / PostgreSQL)
 supabase==2.10.0
 postgrest==0.18.0
-storage3==0.8.1
+storage3==0.9.0
 gotrue==2.10.0
 realtime==2.0.6
 psycopg2-binary==2.9.10

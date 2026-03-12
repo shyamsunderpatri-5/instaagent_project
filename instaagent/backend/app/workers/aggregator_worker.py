@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 )
 def sync_aggregator_posts(aggregator_account_id: str):
     """Celery task to sync posts for a specific account with automatic retries."""
-    logger.info(f"🔄 Syncing aggregator posts for account {aggregator_account_id}")
+    logger.info("Syncing aggregator posts for account %s", aggregator_account_id)
     
     # Run async logic in sync context
     return asyncio.run(aggregator_service.fetch_and_save_posts(aggregator_account_id))
