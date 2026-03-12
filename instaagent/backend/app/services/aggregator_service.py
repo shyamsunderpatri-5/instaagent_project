@@ -38,25 +38,46 @@ class AggregatorService:
 
         # 2. Fetch posts based on account type
         posts = []
-        if account_type == "owned":
-            # Use user's token (either from account or from users table)
-            token = account.get("access_token")
-            if token:
-                token = decrypt_token(token)
+        sync_error = None
+        
+        try:
+            if account_type == "owned":
+                # Use user's token (either from account or from users table)
+                token = account.get("access_token")
+                if token:
+                    token = decrypt_token(token)
+                else:
+                    user_resp = supabase.table("users").select("instagram_token").eq("id", user_id).execute()
+                    token = decrypt_token(user_resp.data[0].get("instagram_token")) if user_resp.data else None
+                
+                if token:
+                    posts = await self._fetch_owned_posts(username, token)
+                else:
+                    sync_error = "No active Instagram token found for owned account"
             else:
-                user_resp = supabase.table("users").select("instagram_token").eq("id", user_id).execute()
-                token = decrypt_token(user_resp.data[0].get("instagram_token")) if user_resp.data else None
-            
-            if token:
-                posts = await self._fetch_owned_posts(username, token)
-        else:
-            # Competitor: Use Business Discovery
-            user_resp = supabase.table("users").select("instagram_id, instagram_token").eq("id", user_id).execute()
-            if user_resp.data:
-                ig_id = user_resp.data[0].get("instagram_id")
-                token = decrypt_token(user_resp.data[0].get("instagram_token"))
-                if ig_id and token:
-                    posts = await self._fetch_competitor_posts(ig_id, username, token)
+                # Competitor: Use Business Discovery
+                user_resp = supabase.table("users").select("instagram_id, instagram_token").eq("id", user_id).execute()
+                if user_resp.data:
+                    ig_id = user_resp.data[0].get("instagram_id")
+                    token = decrypt_token(user_resp.data[0].get("instagram_token"))
+                    if ig_id and token:
+                        posts = await self._fetch_competitor_posts(ig_id, username, token)
+                    else:
+                        sync_error = "Missing Business Profile ID or Token for competitor sync"
+                else:
+                    sync_error = "User not found or missing credentials"
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status in (400, 401, 403):
+                # Non-retryable: token expired or account restricted
+                sync_error = f"Instagram API {status}: Token invalid or account restricted/private"
+                logger.warning(f"Non-retryable IG error {status} for {username}")
+            else:
+                # Let transient errors (429, 5xx) propagate for Celery retry
+                raise
+        except Exception as e:
+            logger.error(f"Unexpected error syncing {username}: {str(e)}")
+            sync_error = f"Internal Sync Error: {str(e)[:100]}"
 
         # 3. Save to DB
         saved_count = 0
@@ -80,8 +101,12 @@ class AggregatorService:
             except Exception as e:
                 logger.error(f"Error saving post {p['id']}: {e}")
 
-        # 4. Update last_synced_at
-        supabase.table("aggregator_accounts").update({"last_synced_at": datetime.now(timezone.utc).isoformat()}).eq("id", str(aggregator_account_id)).execute()
+        # 4. Update status (success or error)
+        update_data = {
+            "last_synced_at": datetime.now(timezone.utc).isoformat(),
+            "sync_error": sync_error
+        }
+        supabase.table("aggregator_accounts").update(update_data).eq("id", str(aggregator_account_id)).execute()
         
         return saved_count
 

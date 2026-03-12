@@ -80,12 +80,12 @@ async def get_posts(
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
-    query = supabase.table("aggregated_posts").select("*, aggregator_accounts!inner(user_id, instagram_username)")
+    # High: Optimized to use direct user_id column on aggregated_posts (no join needed)
+    query = supabase.table("aggregated_posts").select("*").eq("user_id", str(current_user["id"]))
     
     if account_ids:
         query = query.in_("aggregator_account_id", [str(aid) for aid in account_ids])
     
-    query = query.eq("aggregator_accounts.user_id", current_user["id"])
     query = query.order("posted_at", desc=True).limit(limit)
     
     resp = query.execute()
@@ -128,8 +128,15 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     acc_count = supabase.table("aggregator_accounts").select("id", count="exact").execute().count
     post_count = supabase.table("aggregated_posts").select("id", count="exact").execute().count
     
+    # Calculate actual active aggregator users
+    active_users_resp = supabase.table("users") \
+        .select("id", count="exact") \
+        .eq("plan", "aggregator") \
+        .eq("is_active", True) \
+        .execute()
+    
     return {
         "total_tracked_accounts": acc_count,
         "total_aggregated_posts": post_count,
-        "active_users": 0, # Could be calculated
+        "active_users": active_users_resp.count or 0,
     }

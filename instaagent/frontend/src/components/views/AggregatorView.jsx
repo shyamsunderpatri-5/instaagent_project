@@ -9,6 +9,7 @@ export const AggregatorView = ({ token, user }) => {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncPending, setSyncPending] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newAcc, setNewAcc] = useState({ username: "", type: "competitor" });
   
@@ -41,9 +42,11 @@ export const AggregatorView = ({ token, user }) => {
         instagram_username: newAcc.username,
         account_type: newAcc.type
       }, token);
-      show("Account added! Data will sync shortly.");
+      show(t("aggregator.account_added_msg"));
       setShowAdd(false);
       setNewAcc({ username: "", type: "competitor" });
+      setSyncPending(true);
+      setTimeout(() => setSyncPending(false), 30000); // hide after 30s
       fetchData();
     } catch (err) {
       show(err.message, "error");
@@ -60,7 +63,7 @@ export const AggregatorView = ({ token, user }) => {
         account_ids: accounts.map(a => a.id)
       }, token);
       setInsights(res);
-      show("AI Insights generated!");
+      show(t("aggregator.insights_generated_msg"));
     } catch (err) {
       show(err.message, "error");
     } finally {
@@ -84,6 +87,12 @@ export const AggregatorView = ({ token, user }) => {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {syncPending && (
+            <div className="fade-up" style={{ background: `${T.primary}15`, border: `1px solid ${T.primary}40`, borderRadius: 12, padding: "12px 16px", fontSize: 13, color: T.primary, display: "flex", alignItems: "center", gap: 10 }}>
+              <Spinner size={14} color={T.primary} />
+              {t("aggregator.sync_pending_banner")}
+            </div>
+          )}
           {/* Tracked Accounts */}
           <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 24 }}>
             <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>{t("aggregator.tracked_accounts")}</h2>

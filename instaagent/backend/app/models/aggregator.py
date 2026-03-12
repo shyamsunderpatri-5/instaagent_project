@@ -1,7 +1,7 @@
 # backend/app/models/aggregator.py
 from pydantic import BaseModel, Field, HttpUrl
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 class AggregatorAccountBase(BaseModel):
@@ -13,8 +13,8 @@ class AggregatorAccountCreate(AggregatorAccountBase):
 
 class AggregatorAccount(AggregatorAccountBase):
     id: UUID
-    user_id: UUID
     last_synced_at: Optional[datetime] = None
+    sync_error: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -47,4 +47,4 @@ class AIInsightResponse(BaseModel):
     trend_summaries: List[str]
     best_posting_times: List[str]
     caption_suggestions: List[str]
-    generated_at: datetime = Field(default_factory=datetime.now)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

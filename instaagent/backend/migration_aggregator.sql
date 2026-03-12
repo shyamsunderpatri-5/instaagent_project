@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS aggregator_accounts (
     account_type        TEXT        NOT NULL DEFAULT 'owned', -- 'owned' | 'competitor'
     access_token        TEXT,                                 -- for owned accounts
     last_synced_at      TIMESTAMPTZ,
+    sync_error          TEXT,                                 -- Error message if sync failed
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, instagram_username)

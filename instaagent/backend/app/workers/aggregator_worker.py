@@ -27,11 +27,22 @@ def sync_all_aggregator_accounts():
     logger.info("Starting batch sync for all active aggregator accounts")
     supabase = get_supabase()
     
-    # High: Only sync accounts for users on the 'aggregator' plan who are active
+    # High: Filter users separately for reliability (SDK join-filter can be unstable)
+    users_resp = supabase.table("users") \
+        .select("id") \
+        .eq("plan", "aggregator") \
+        .eq("is_active", True) \
+        .execute()
+    
+    user_ids = [u["id"] for u in (users_resp.data or [])]
+    if not user_ids:
+        logger.info("No active aggregator users found for sync")
+        return "No active aggregator users"
+
+    # Now get accounts for these specific users
     resp = supabase.table("aggregator_accounts") \
-        .select("id, users!inner(plan, is_active)") \
-        .eq("users.plan", "aggregator") \
-        .eq("users.is_active", True) \
+        .select("id") \
+        .in_("user_id", user_ids) \
         .execute()
     
     accounts = resp.data or []

@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS aggregator_accounts (
     account_type        TEXT        NOT NULL DEFAULT 'owned',
     access_token        TEXT,
     last_synced_at      TIMESTAMPTZ,
+    sync_error          TEXT,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, instagram_username)
