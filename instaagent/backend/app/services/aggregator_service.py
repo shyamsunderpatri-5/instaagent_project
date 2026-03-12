@@ -28,7 +28,7 @@ class AggregatorService:
         # 1. Get account details
         acc_resp = supabase.table("aggregator_accounts").select("*").eq("id", str(aggregator_account_id)).execute()
         if not acc_resp.data:
-            logger.error(f"Aggregator account {aggregator_account_id} not found")
+            logger.error("Aggregator account %s not found", aggregator_account_id)
             return 0
         
         account = acc_resp.data[0]
@@ -71,12 +71,12 @@ class AggregatorService:
             if status in (400, 401, 403):
                 # Non-retryable: token expired or account restricted
                 sync_error = f"Instagram API {status}: Token invalid or account restricted/private"
-                logger.warning(f"Non-retryable IG error {status} for {username}")
+                logger.warning("Non-retryable IG error %s for %s", status, username)
             else:
                 # Let transient errors (429, 5xx) propagate for Celery retry
                 raise
         except Exception as e:
-            logger.error(f"Unexpected error syncing {username}: {str(e)}")
+            logger.error("Unexpected error syncing %s: %s", username, str(e))
             sync_error = f"Internal Sync Error: {str(e)[:100]}"
 
         # 3. Save to DB
@@ -99,7 +99,7 @@ class AggregatorService:
                 supabase.table("aggregated_posts").upsert(post_data, on_conflict="aggregator_account_id, ig_post_id").execute()
                 saved_count += 1
             except Exception as e:
-                logger.error(f"Error saving post {p['id']}: {e}")
+                logger.error("Error saving post %s: %s", p['id'], e)
 
         # 4. Update status (success or error)
         update_data = {
