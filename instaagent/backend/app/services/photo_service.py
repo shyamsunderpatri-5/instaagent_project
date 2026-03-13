@@ -10,27 +10,28 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-def compress_image(image_bytes: bytes, max_size_kb: int = 500) -> bytes:
-    """Compress image before sending to APIs — reduces cost and speeds up processing."""
+def compress_image(image_input: bytes | Image.Image, max_size_kb: int = 500) -> bytes:
+    """
+    Compress image before sending to APIs — reduces cost and speeds up processing.
+    Accepts bytes or PIL.Image.Image. Always returns bytes (for API/Storage).
+    """
     try:
-        img = Image.open(io.BytesIO(image_bytes))
+        if isinstance(image_input, Image.Image):
+            img = image_input.copy()
+        else:
+            img = Image.open(io.BytesIO(image_input))
     except (UnidentifiedImageError, ValueError) as e:
         logger.error("Failed to open image: %s", e)
-        # If we can't open it, we can't compress it. Return as is and let the worker handle it.
-        return image_bytes
+        return image_input if isinstance(image_input, bytes) else b""
 
     # Convert to RGB (handles PNG with alpha, WEBP, etc.)
     if img.mode in ("RGBA", "P", "LA"):
-        # Create white background
         background = Image.new("RGB", img.size, (255, 255, 255))
         if img.mode == "RGBA":
-            # Use alpha channel as mask
             background.paste(img, mask=img.split()[3])
         elif img.mode == "LA":
-            # Use alpha channel (index 1) as mask
             background.paste(img, mask=img.split()[1])
         else:
-            # Mode P (palette) — convert to RGBA first for safe alpha handling
             rgba_img = img.convert("RGBA")
             background.paste(rgba_img, mask=rgba_img.split()[3])
         img = background
@@ -56,25 +57,27 @@ def compress_image(image_bytes: bytes, max_size_kb: int = 500) -> bytes:
     return output.getvalue()
 
 
+def _sharpen_image_obj(img: Image.Image, subtle: bool = False) -> Image.Image:
+    """Internal helper that operates on PIL Image objects to prevent re-encoding loss."""
+    # 1. Sharpen
+    img = img.filter(ImageFilter.SHARPEN)
+    if not subtle:
+        img = img.filter(ImageFilter.DETAIL)
+    
+    # 2. Enhance Color & Contrast
+    enhancer = ImageEnhance.Color(img)
+    img = enhancer.enhance(1.02 if subtle else 1.1) 
+    
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.05 if subtle else 1.1) 
+    return img
+
+
 def sharpen_image(image_bytes: bytes, subtle: bool = False) -> bytes:
-    """Apply sharpening and subtle color enhancement to fix blurry phone photos."""
+    """Wrapper that preserves the public 'bytes' interface but uses the object helper."""
     try:
         img = Image.open(io.BytesIO(image_bytes))
-        
-        # 1. Sharpen
-        img = img.filter(ImageFilter.SHARPEN)
-        if not subtle:
-            img = img.filter(ImageFilter.DETAIL)  # Extra detail pop only if not subtle
-        
-        # 2. Enhance Color & Contrast
-        enhancer = ImageEnhance.Color(img)
-        # subtle mode: minimal enhancement (1.02)
-        img = enhancer.enhance(1.02 if subtle else 1.1) 
-        
-        enhancer = ImageEnhance.Contrast(img)
-        # subtle mode: max 5% enhancement per enterprise standard
-        img = enhancer.enhance(1.05 if subtle else 1.1) 
-        
+        img = _sharpen_image_obj(img, subtle)
         output = io.BytesIO()
         img.save(output, format="JPEG", quality=95)
         return output.getvalue()
@@ -90,7 +93,7 @@ async def remove_background(image_bytes: bytes, bg_color: str = "ffffff") -> Tup
     """
     if settings.AI_SIMULATION or not settings.REMOVEBG_API_KEY:
         logger.info("🛠️ SIMULATION: Mocking background removal")
-        return sharpen_image(image_bytes, subtle=True), True # bytes, failed_flag
+        return image_bytes, True # bytes (original, not sharpened), failed_flag
 
     try:
         compressed = compress_image(image_bytes)
@@ -105,8 +108,8 @@ async def remove_background(image_bytes: bytes, bg_color: str = "ffffff") -> Tup
             response.raise_for_status()
             return response.content, False
     except Exception as e:
-        logger.warning("Remove.bg failed: %s. Returning original.", e)
-        return sharpen_image(image_bytes, subtle=True), True
+        logger.warning("Remove.bg failed: %s. Returning pristine original.", e)
+        return image_bytes, True
 
 
 async def enhance_photo(image_bytes: bytes) -> Tuple[bytes, bool]:
@@ -161,34 +164,50 @@ async def full_photo_pipeline(image_bytes: bytes, subtle_only: bool = False, ski
 
     If skip_editing is True, it ONLY compresses and returns the original.
     """
-    # Step 1: Compress to ≤500KB / 1080px max-dim
-    compressed = compress_image(image_bytes)
-    logger.info("Pipeline: compressed %dKB → %dKB", len(image_bytes)//1024, len(compressed)//1024)
+    # Step 1: Open and Compress to ≤500KB / 1080px max-dim
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception as e:
+        logger.error("Pipeline failed to parse image: %s", e)
+        return {"original_bytes": image_bytes, "edited_bytes": image_bytes, "vision_failed": True, "error": str(e)}
+
+    # Initial compression for API compatibility (max dimensions/size)
+    compressed_bytes = compress_image(img, max_size_kb=500)
+    logger.info("Pipeline: input %dKB → compressed %dKB", len(image_bytes)//1024, len(compressed_bytes)//1024)
 
     if skip_editing:
         return {
-            "original_bytes": compressed,
-            "edited_bytes": compressed,
+            "original_bytes": compressed_bytes,
+            "edited_bytes": compressed_bytes,
             "is_subtle": True,
             "is_skipped": True,
             "vision_failed": False
         }
 
     # Step 2: Sharpen + colour lift — always subtle to keep product looking real
-    sharpened = sharpen_image(compressed, subtle=True)
+    # Refactor A1.3: Apply sharpening to the PIL object directly to avoid re-encoding
+    img = _sharpen_image_obj(img, subtle=True)
     
     # Step 3: Photoroom enhancement (optional)
     enhance_failed = False
     if not subtle_only:
-        enhanced, enhance_failed = await enhance_photo(sharpened)
-        final_image = enhanced
+        # Convert to bytes for Photoroom API
+        buff = io.BytesIO()
+        img.save(buff, format="PNG") # PNG to preserve quality for Photoroom
+        sharpened_bytes = buff.getvalue()
+        
+        enhanced_bytes, enhance_failed = await enhance_photo(sharpened_bytes)
+        final_bytes = enhanced_bytes
     else:
-        final_image = sharpened
+        # No Photoroom, save current sharpened state to JPEG
+        buff = io.BytesIO()
+        img.save(buff, format="JPEG", quality=95)
+        final_bytes = buff.getvalue()
 
     return {
-        "original_bytes": compressed,
-        "edited_bytes": final_image,
+        "original_bytes": compressed_bytes,
+        "edited_bytes": final_bytes,
         "is_subtle": subtle_only,
         "enhance_failed": enhance_failed,
-        "vision_failed": False # Placeholder for worker
+        "vision_failed": False
     }

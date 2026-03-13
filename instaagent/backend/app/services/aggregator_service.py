@@ -13,6 +13,8 @@ from app.utils.crypto import decrypt_token, encrypt_token
 from app.services.instagram_service import GRAPH_BASE, GRAPH_VERSION
 from app.services.caption_service import _get_client
 from app.utils.sanitization import sanitize_input
+from app.db.redis_client import get_redis
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +156,18 @@ class AggregatorService:
             logger.warning("Access denied to aggregator accounts for user %s", user_id_str)
             return {"error": "No valid accounts found or access denied"}
 
+        # B1.4: Redis Caching for AI Insights (4-hour TTL)
+        r = get_redis()
+        cache_key = None
+        if r:
+            ids_str = ",".join(sorted([str(aid) for aid in valid_ids]))
+            ids_hash = hashlib.md5(ids_str.encode()).hexdigest()
+            cache_key = f"aggregator:insights:{user_id_str}:{ids_hash}"
+            cached = r.get(cache_key)
+            if cached:
+                logger.info("B1.4: Returning cached AI insights for %s", user_id_str)
+                return json.loads(cached)
+
         # 2. Fetch recent posts from these accounts in a single query (Fix N+1)
         resp = supabase.table("aggregated_posts")\
             .select("caption, likes, comments, hashtags, posted_at, media_type, engagement_rate")\
@@ -183,7 +197,7 @@ class AggregatorService:
                 return "Unknown"
 
         post_summary = "\n".join([
-            f"Post: {sanitize_input(p.get('caption', ''))[:80]}... | Type: {p['media_type']} | ER: {p.get('engagement_rate', 0)}% | Time: {_get_hour(p.get('posted_at', ''))}"
+            f"Post: {sanitize_input(p.get('caption', ''))[:80]}... | Type: {p.get('media_type', 'IMAGE')} | ER: {p.get('engagement_rate', 0)}% | Time: {_get_hour(p.get('posted_at', ''))}"
             for p in post_data
         ])
 
@@ -248,7 +262,14 @@ Return ONLY this JSON structure (Raw JSON string):
         raw = response.content[0].text.strip()
         raw = re.sub(r"^```json\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
-        return json.loads(raw)
+        try:
+            parsed_res = json.loads(raw)
+            if r and cache_key:
+                r.setex(cache_key, 14400, json.dumps(parsed_res))
+            return parsed_res
+        except json.JSONDecodeError as e:
+            logger.error("AI Insights JSON parse error: %s", e)
+            return {"error": "Deep analysis failed. Please try again."}
 
     async def _fetch_owned_posts(self, username: str, token: str) -> Dict[str, Any]:
         """Fetch posts and metrics for an owned account."""
@@ -359,6 +380,13 @@ Return ONLY this JSON structure (Raw JSON string):
 
     async def get_content_format_stats(self, user_id: UUID) -> List[Dict[str, Any]]:
         """Get engagement stats grouped by media type."""
+        user_id_str = str(user_id)
+        r = get_redis()
+        cache_key = f"aggregator:analytics:formats:{user_id_str}"
+        if r:
+            cached = r.get(cache_key)
+            if cached: return json.loads(cached)
+
         supabase = self._get_supabase()
         # RPC approach for efficiency
         try:
@@ -366,10 +394,10 @@ Return ONLY this JSON structure (Raw JSON string):
             return res.data or []
         except Exception as e:
             logger.warning("RPC fallback (content format): %s", e)
-            # Python fallback
+            # Python fallback (B2.2: adding likes/comments to fallback)
             resp = supabase.table("aggregated_posts") \
-                .select("media_type, engagement_rate") \
-                .eq("user_id", str(user_id)) \
+                .select("media_type, engagement_rate, likes, comments") \
+                .eq("user_id", user_id_str) \
                 .execute()
             
             data = resp.data or []
@@ -381,7 +409,7 @@ Return ONLY this JSON structure (Raw JSON string):
                 formats[mt]["total_er"] += row["engagement_rate"]
                 formats[mt]["post_count"] += 1
             
-            return [
+            res = [
                 {
                     "media_type": f["media_type"],
                     "avg_engagement": round(f["total_er"] / f["post_count"], 2),
@@ -389,9 +417,18 @@ Return ONLY this JSON structure (Raw JSON string):
                 }
                 for f in formats.values()
             ]
+            if r: r.setex(cache_key, 3600, json.dumps(res))
+            return res
 
     async def get_posting_frequency(self, user_id: UUID) -> Dict[str, Any]:
         """Get posting frequency by day of week (Owned vs Competitor)."""
+        user_id_str = str(user_id)
+        r = get_redis()
+        cache_key = f"aggregator:analytics:frequency:{user_id_str}"
+        if r:
+            cached = r.get(cache_key)
+            if cached: return json.loads(cached)
+
         supabase = self._get_supabase()
         resp = supabase.table("aggregated_posts") \
             .select("posted_at, aggregator_accounts(account_type)") \
@@ -404,9 +441,11 @@ Return ONLY this JSON structure (Raw JSON string):
         
         comp_acc_count = supabase.table("aggregator_accounts") \
             .select("id", count="exact") \
-            .eq("user_id", str(user_id)) \
+            .eq("user_id", user_id_str) \
             .eq("account_type", "competitor") \
-            .execute().count or 1
+            .execute().count or 0
+        
+        no_competitors = comp_acc_count == 0
 
         for row in data:
             try:
@@ -436,19 +475,29 @@ Return ONLY this JSON structure (Raw JSON string):
             except:
                 pass
 
-        return {
+        final_res = {
             "heatmap": [
                 {
                     **h,
-                    "competitor_avg_count": round(h["competitor_count"] / comp_acc_count, 1)
+                    "competitor_avg_count": 0 if no_competitors else round(h["competitor_count"] / comp_acc_count, 1)
                 } for h in heatmap.values()
             ],
             "avg_per_week_owned": round(total_owned / weeks, 1),
-            "avg_per_week_competitor": round((total_comp / comp_acc_count) / weeks, 1)
+            "avg_per_week_competitor": 0 if no_competitors else round((total_comp / comp_acc_count) / weeks, 1),
+            "no_competitors": no_competitors
         }
+        if r: r.setex(cache_key, 3600, json.dumps(final_res))
+        return final_res
 
     async def get_comparison_stats(self, user_id: UUID) -> Dict[str, Any]:
         """Get high-level comparison stats for all tracked accounts."""
+        user_id_str = str(user_id)
+        r = get_redis()
+        cache_key = f"aggregator:analytics:comparison:{user_id_str}"
+        if r:
+            cached = r.get(cache_key)
+            if cached: return json.loads(cached)
+
         supabase = self._get_supabase()
         accs = supabase.table("aggregator_accounts") \
             .select("id, instagram_username, account_type, followers_count") \
@@ -497,13 +546,22 @@ Return ONLY this JSON structure (Raw JSON string):
                 "top_hashtags": top_tags
             })
         
-        return {
+        final_res = {
             "owned": next((r for r in results if r["account_type"] == "owned"), None),
             "competitors": [r for r in results if r["account_type"] == "competitor"]
         }
+        if r: r.setex(cache_key, 3600, json.dumps(final_res))
+        return final_res
 
     async def get_user_hashtag_performance(self, user_id: UUID) -> List[Dict[str, Any]]:
         """Get hashtag performance for a specific user's tracked network."""
+        user_id_str = str(user_id)
+        r = get_redis()
+        cache_key = f"aggregator:analytics:hashtags:{user_id_str}"
+        if r:
+            cached = r.get(cache_key)
+            if cached: return json.loads(cached)
+
         supabase = self._get_supabase()
         resp = supabase.table("aggregated_posts") \
             .select("hashtags, engagement_rate") \
@@ -524,12 +582,14 @@ Return ONLY this JSON structure (Raw JSON string):
             reverse=True
         )[:20]
         
-        return [
+        final_res = [
             {
                 "tag": s["tag"],
                 "avg_engagement": round(s["total_er"] / s["count"], 2),
                 "count": s["count"]
             } for s in sorted_tags
         ]
+        if r: r.setex(cache_key, 3600, json.dumps(final_res))
+        return final_res
 
 aggregator_service = AggregatorService()

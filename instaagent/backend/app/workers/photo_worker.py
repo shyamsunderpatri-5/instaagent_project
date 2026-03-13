@@ -41,6 +41,8 @@ def process_photo_task(
     is_carousel_duo: bool = False,
 ):
     try:
+        # NOTE: asyncio.run in Celery tasks requires the '--pool=prefork' or '--pool=solo' constraint.
+        # This prevents loop conflicts in eventlet/gevent pools.
         asyncio.run(_process_photo_async(
             post_id=post_id,
             user_id=user_id,
@@ -60,7 +62,7 @@ def process_photo_task(
             "status": "failed",
             "error_message": str(exc),
         }).eq("id", post_id).execute()
-        if telegram_id:
+        if telegram_id is not None:
             asyncio.run(send_message(
                 telegram_id,
                 f"❌ Sorry, processing failed for '{product_name}'.\nError: {str(exc)[:100]}\n\nPlease try again.",
@@ -116,6 +118,9 @@ async def _process_photo_async(
     if is_carousel_duo:
         _log("STEP2b_DUO", post_id, "generating second image for carousel")
         try:
+            # Logic for "Duo Carousel" (side-by-side comparison):
+            # If user chose 'Subtle' (is_enhanced=False), show them 'Pro' as second slide.
+            # If user chose 'Pro' (is_enhanced=True), show 'Subtle' as second slide for before/after contrast.
             if not is_enhanced:
                 pro_res = await full_photo_pipeline(original_bytes, subtle_only=False)
                 second_image_bytes = pro_res["edited_bytes"]
@@ -173,7 +178,7 @@ async def _process_photo_async(
             except Exception as e:
                 wait = (i + 1) * 2
                 _log("STEP6_UPLOAD", post_id, f"Upload retry {i+1} after {wait}s: {e}", error=True)
-                if i < 2: time.sleep(wait)
+                if i < 2: await asyncio.sleep(wait) # A2.3: Use non-blocking sleep
                 else: raise
         return False
 
@@ -225,7 +230,7 @@ async def _process_photo_async(
         raise
 
     # ── Step 8: Notify user on Telegram (only for Telegram flow) ──────────────
-    if telegram_id:
+    if telegram_id is not None:
         _log("STEP8_TELEGRAM", post_id, f"sending notification to telegram_id={telegram_id}")
         try:
             await send_message(

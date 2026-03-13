@@ -75,12 +75,13 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
       return;
     }
     
-    // HEIC warning: browsers don't support native preview for HEIC
+    // HEIC/HEIF Rejection (C1.4): Backend lacks system libraries for native processing
     if (imgs[0].name.toLowerCase().endsWith(".heic") || imgs[0].name.toLowerCase().endsWith(".heif")) {
-      setError("HEIC detected. We will process it, but preview may not show in browser.");
-    } else {
-      setError("");
+      setError("HEIC/HEIF not supported yet. Please use a JPG/PNG or convert your photo first.");
+      setPhotos([]);
+      return;
     }
+    setError("");
 
     setPhotos(imgs);
   };
@@ -256,7 +257,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
           {/* AI Photo Editing — DEFAULT OFF (user wants original unless they explicitly opt-in) */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, background: T.surfaceAlt, padding: "12px 16px", borderRadius: 12, border: `1px solid ${T.border}` }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>AI Photo Editing & Sharpening</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>AI Sharpening & Color Enhancement</div>
               <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Fix blurry pics & lift colors. Keep OFF for original photo.</div>
             </div>
             <Toggle value={isEnhanced} onChange={setIsEnhanced} />
@@ -276,8 +277,14 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
       {step === 2 && (
         <div style={{ textAlign: "center", padding: 40 }}>
           <Spinner size={36} color={T.primary} />
-          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 20, color: T.text }}>AI is processing your photo...</div>
-          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 8 }}>Analysing product + generating SEO caption (~12–15s)</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginTop: 20, color: T.text }}>
+            {procStep === 0 && "📤 Step 1: Uploading photo..."}
+            {procStep === 1 && "🔍 Step 2: Analyzing product details..."}
+            {procStep >= 2 && "✍️ Step 3: Generating SEO captions..."}
+          </div>
+          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 8 }}>
+            AI is working its magic (~12s)
+          </div>
         </div>
       )}
 

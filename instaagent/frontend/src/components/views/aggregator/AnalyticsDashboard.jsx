@@ -21,7 +21,7 @@ export const AnalyticsDashboard = ({ formatStats, freqData, compStats, tagStats,
           />
           <StatCard 
             title={t("aggregator.network_er")} 
-            value={`${compStats?.owned?.avg_engagement || 0}%`} 
+            value={compStats?.owned?.avg_engagement !== undefined && compStats?.owned?.avg_engagement !== null ? `${compStats.owned.avg_engagement}%` : "—"} 
             subtitle={t("aggregator.owned_account")}
             icon={I.analytics}
           />
@@ -77,8 +77,8 @@ export const AnalyticsDashboard = ({ formatStats, freqData, compStats, tagStats,
                     @{acc.username} {idx === 0 && <span style={{ fontSize: 9 }}>({t("aggregator.you")})</span>}
                   </td>
                   <td style={{ padding: "12px 0" }}>{acc.followers.toLocaleString()}</td>
-                  <td style={{ padding: "12px 0", fontWeight: 800 }}>{acc.avg_engagement}%</td>
-                  <td style={{ padding: "12px 0" }}>{acc.posts_per_week}</td>
+                  <td style={{ padding: "12px 0", fontWeight: 800 }}>{acc.avg_engagement !== null && acc.avg_engagement !== undefined ? `${acc.avg_engagement}%` : "—"}</td>
+                  <td style={{ padding: "12px 0" }}>{acc.posts_per_week !== null && acc.posts_per_week !== undefined ? acc.posts_per_week : "—"}</td>
                 </tr>
               ))}
             </tbody>

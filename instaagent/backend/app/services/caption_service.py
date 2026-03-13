@@ -210,7 +210,7 @@ async def analyze_product_photo(image_base64: str) -> dict:
         return json.loads(raw)
     except Exception as e:
         print(f"⚠️ Anthropic vision failed: {e}")
-        return {"product_type": "other"}
+        return {"product_type": "other", "vision_failed": True}
 
 @retry_on_exception(retries=3)
 async def generate_reels_script(product_name: str, additional_info: str):

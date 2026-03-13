@@ -211,25 +211,34 @@ async def _publish_single_post(supabase, post: dict) -> None:
         err_str = str(e)
         logger.error("Failed to publish post %s: %s", post_id, err_str)
 
-        # ── Instagram rate-limit: reschedule +1 hour instead of failing ───────
+        # ── Instagram rate-limit (Code 32): reschedule to tomorrow 9 AM IST ───
         if "code 32" in err_str.lower() or "rate" in err_str.lower():
-            # Exponentially backoff or fixed 1h shift
-            new_time = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+            # A4.1: If quota exhausted, move to next day 9:00 AM IST
+            now_utc = datetime.now(timezone.utc)
+            now_ist = now_utc + IST_OFFSET
+            
+            # Target: 9:00 AM IST tomorrow
+            tomorrow_ist = (now_ist + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            tomorrow_utc = (tomorrow_ist - IST_OFFSET).replace(tzinfo=timezone.utc)
+            
+            new_time_iso = tomorrow_utc.isoformat()
+            
             supabase.table("posts").update({
-                "scheduled_at":  new_time,
-                "status":        "scheduled", # Re-queue
-                "error_message": f"Rate limit hit — rescheduled to {new_time[:16]} UTC",
+                "scheduled_at":  new_time_iso,
+                "status":        "scheduled", # Re-queue for tomorrow
+                "error_message": f"Instagram Quota Limit — Rescheduled to Tomorrow 09:00 IST",
             }).eq("id", post_id).execute()
 
             if telegram_id:
                 notify_msg = (
-                    f"⚠️ Instagram rate limit — *{post.get('product_name', 'Post')}* "
-                    f"1 घंटे बाद auto-post होगा।"
+                    f"⚠️ Instagram daily post limit reached — *{post.get('product_name', 'Post')}* "
+                    f"कल सुबह 09:00 बजे post होगा।"
                     if lang == "hi" else
-                    f"⚠️ Instagram rate limit — *{post.get('product_name', 'Post')}* "
-                    f"will be retried in 1 hour."
+                    f"⚠️ Instagram daily limit reached — *{post.get('product_name', 'Post')}* "
+                    f"has been rescheduled to tomorrow 09:00 AM IST."
                 )
                 try:
+                    from app.services.telegram_service import send_message
                     await send_message(int(telegram_id), notify_msg)
                 except Exception:
                     pass

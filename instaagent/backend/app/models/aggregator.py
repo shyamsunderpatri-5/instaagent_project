@@ -17,7 +17,7 @@ class AggregatorAccount(AggregatorAccountBase):
     sync_error: Optional[str] = None
     followers_count: int = 0
     following_count: int = 0
-    alert_enabled: bool = False
+    alert_enabled: bool = True
     alert_threshold_er: float = Field(default=3.0, ge=0.5, le=20.0)
     created_at: datetime
     updated_at: datetime
@@ -54,7 +54,7 @@ class AIInsightResponse(BaseModel):
     caption_suggestions: List[str]
     content_sentiment: Optional[str] = None
     top_format: Optional[str] = None
-    weak_spots: List[str] = []
+    weak_spots: Optional[List[str]] = []
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ContentFormatStats(BaseModel):

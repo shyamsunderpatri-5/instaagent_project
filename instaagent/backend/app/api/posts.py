@@ -298,6 +298,11 @@ async def schedule_from_settings(
     preferred_time = (user_result.data or {}).get("preferred_post_time") or "19:00"
 
     # Parse HH:MM (IST) and convert to UTC datetime for today
+    if not preferred_time:
+        from app.workers.post_worker import suggest_best_post_time
+        preferred_time = await suggest_best_post_time(user_id)
+        logger.info("A4.2: Using AI suggested time: %s for user %s", preferred_time, user_id)
+
     try:
         hour, minute = map(int, preferred_time.split(":"))
     except Exception:

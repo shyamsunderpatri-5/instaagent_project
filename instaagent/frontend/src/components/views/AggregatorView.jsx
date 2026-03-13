@@ -61,14 +61,19 @@ export const AggregatorView = ({ token, user }) => {
 
   useEffect(() => { fetchData(); }, [token, sortPosts, activeTab]);
 
-  // Load Chart.js
+  // Load Chart.js (C2.3: Security check and deduplication)
   useEffect(() => {
-    if (activeTab === "analytics") {
+    if (activeTab === "analytics" && !window.Chart) {
+      if (document.getElementById("chartjs-script")) return;
       const script = document.createElement("script");
       script.src = "https://cdn.jsdelivr.net/npm/chart.js";
       script.async = true;
+      script.id = "chartjs-script";
       document.body.appendChild(script);
-      return () => document.body.removeChild(script);
+      return () => {
+        const s = document.getElementById("chartjs-script");
+        if (s) document.body.removeChild(s);
+      }
     }
   }, [activeTab]);
 
