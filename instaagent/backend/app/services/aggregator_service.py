@@ -264,6 +264,13 @@ Return ONLY this JSON structure (Raw JSON string):
         raw = re.sub(r"\s*```$", "", raw)
         try:
             parsed_res = json.loads(raw)
+            # B1.3: Inject defaults for required Pydantic keys to prevent 422 errors
+            parsed_res.setdefault("post_ideas", [])
+            parsed_res.setdefault("trend_summaries", [])
+            parsed_res.setdefault("best_posting_times", [])
+            parsed_res.setdefault("caption_suggestions", [])
+            parsed_res.setdefault("weak_spots", [])
+            
             if r and cache_key:
                 r.setex(cache_key, 14400, json.dumps(parsed_res))
             return parsed_res
@@ -405,14 +412,18 @@ Return ONLY this JSON structure (Raw JSON string):
             for row in data:
                 mt = row["media_type"] or "UNKNOWN"
                 if mt not in formats:
-                    formats[mt] = {"media_type": mt, "total_er": 0, "post_count": 0}
+                    formats[mt] = {"media_type": mt, "total_er": 0, "total_likes": 0, "total_comments": 0, "post_count": 0}
                 formats[mt]["total_er"] += row["engagement_rate"]
+                formats[mt]["total_likes"] += row["likes"]
+                formats[mt]["total_comments"] += row["comments"]
                 formats[mt]["post_count"] += 1
             
             res = [
                 {
                     "media_type": f["media_type"],
                     "avg_engagement": round(f["total_er"] / f["post_count"], 2),
+                    "avg_likes": round(f["total_likes"] / f["post_count"], 1),
+                    "avg_comments": round(f["total_comments"] / f["post_count"], 1),
                     "post_count": f["post_count"]
                 }
                 for f in formats.values()
