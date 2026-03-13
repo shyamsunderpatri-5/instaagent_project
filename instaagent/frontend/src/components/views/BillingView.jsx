@@ -51,6 +51,14 @@ export const BillingView = ({ user, usage, token }) => {
         setSub(s?.subscription || null);
         setLoading(false);
     });
+
+    // Dynamically load Razorpay SDK
+    if (!window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
   }, [token]);
 
   const handleUpgrade = async (planId) => {
@@ -58,11 +66,45 @@ export const BillingView = ({ user, usage, token }) => {
       show("You're already on the free plan.");
       return;
     }
+
+    if (!window.Razorpay) {
+      show("Payment gateway is still loading. Please wait a second.", "info");
+      return;
+    }
+
     try {
-        await api.post("/api/v1/subscription/create", { plan_id: planId }, token);
-        show("Upgrade initiated! Complete payment to activate.", "success");
+        const res = await api.post("/api/v1/subscription/create", { plan_id: planId }, token);
+        
+        // Response should contain Razorpay order details
+        const options = {
+          key: res.razorpay_key,
+          subscription_id: res.subscription_id,
+          name: "InstaAgent",
+          description: `Upgrade to ${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan`,
+          image: "https://instaagent.app/logo.png",
+          prefill: {
+            name: res.user?.name || user?.full_name || "",
+            email: res.user?.email || user?.email || "",
+            contact: res.user?.phone || user?.phone || ""
+          },
+          theme: { color: "#2D4FD6" },
+          handler: async (response) => {
+            show("Payment successful! Refreshing your plan...", "success");
+            // Refresh user and subscription state
+            const currentSub = await api.get("/api/v1/subscription/current", token);
+            setSub(currentSub?.subscription || null);
+          },
+          modal: {
+            ondismiss: () => {
+              show("Payment cancelled.");
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+
     } catch (err) {
-        // Check if Razorpay is not configured yet
         if (err.message?.includes("razorpay") || err.message?.includes("plan_id")) {
           show("Payment gateway not yet configured. Contact support.", "error");
         } else {

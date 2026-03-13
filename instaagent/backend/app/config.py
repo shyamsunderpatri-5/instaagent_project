@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     INSTAGRAM_REDIRECT_URI: str = ""
     INSTAGRAM_VERIFY_TOKEN: str = ""
     INSTAGRAM_TOKEN_REFRESH_DAYS: int = 7            # refresh tokens with N days left
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     # ── Simulation & Testing ─────────────────────────────────────────────────
     INSTAGRAM_SIMULATE: bool = False                 # if true, log posts instead of hitting Meta API
     AI_SIMULATION: bool = False                      # if true, skip Claude/Photoroom and use mocks

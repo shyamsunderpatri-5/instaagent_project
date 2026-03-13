@@ -9,19 +9,54 @@ export const AdminView = ({ token }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Initial data fetch for dashboard stats and aggregator stats
   useEffect(() => {
     setLoading(true);
     Promise.all([
         api.get("/api/v1/admin/dashboard", token),
-        api.get("/api/v1/admin/users", token),
         api.get("/api/v1/aggregator/admin/stats", token).catch(() => null),
-    ]).then(([s, u, as]) => {
+    ]).then(([s, as]) => {
         setStats(s.stats);
-        setUsers(u.users);
         setAggStats(as);
-        setLoading(false);
+        // setLoading(false); // Users are fetched in a separate effect now
+    }).finally(() => {
+      // If users are fetched separately, this setLoading(false) might need adjustment
+      // For now, let's assume the user fetch will handle the final setLoading(false)
     });
   }, [token]);
+
+  // Separate effect for fetching users, allowing it to be re-triggered
+  useEffect(() => {
+    setLoading(true);
+    api.get("/api/v1/admin/users", token)
+      .then(res => setUsers(res.users || []))
+      .catch(e => console.error(e.message)) // Assuming 'show' is a global or imported function, using console.error for now
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const handleAction = async (userId, type) => {
+    const confirmMsg = type === "ban"
+      ? "Are you sure you want to change this user's access status?"
+      : "Reset this user's monthly usage quota?";
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const endpoint = type === "ban" ? `/api/v1/admin/users/${userId}/ban` : `/api/v1/admin/users/${userId}/reset-quota`;
+      await api.post(endpoint, {}, token);
+      // Assuming 'show' is a global or imported function
+      // show(`Action ${type} successful`, "success");
+      console.log(`Action ${type} successful`);
+
+      // Refresh list
+      const res = await api.get("/api/v1/admin/users", token);
+      setUsers(res.users || []);
+    } catch (e) {
+      // Assuming 'show' is a global or imported function
+      // show(e.message, "error");
+      console.error(e.message);
+    }
+  };
 
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1000 }}>
@@ -47,19 +82,44 @@ export const AdminView = ({ token }) => {
                       <th style={{ padding: "12px 8px" }}>Name / Email</th>
                       <th style={{ padding: "12px 8px" }}>Status</th>
                       <th style={{ padding: "12px 8px" }}>Joined</th>
-                      <th style={{ padding: "12px 8px" }}>IG Linked</th>
+                      <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 13 }}>Status</th>
+                      <th style={{ textAlign: "right", padding: "12px 16px", fontSize: 13 }}>Actions</th>
                    </tr>
                 </thead>
                 <tbody>
                    {users.map(u => (
-                      <tr key={u.id} style={{ borderBottom: `1px solid ${T.border}`, color: T.text }}>
-                         <td style={{ padding: "12px 8px" }}>
-                            <div style={{ fontWeight: 600 }}>{u.full_name}</div>
-                            <div style={{ fontSize: 11, color: T.textMuted }}>{u.email}</div>
+                      <tr key={u.id} style={{ borderBottom: `1px solid ${T.border}` }}>
+                         <td style={{ padding: 16 }}>
+                            <div style={{ fontWeight: 700, color: T.text }}>{u.full_name}</div>
+                            <div style={{ fontSize: 12, color: T.textMuted }}>{u.email}</div>
                          </td>
-                         <td style={{ padding: "12px 8px" }}><Badge status={u.plan || "free"} /></td>
-                         <td style={{ padding: "12px 8px" }}>{new Date(u.created_at).toLocaleDateString()}</td>
-                         <td style={{ padding: "12px 8px" }}>{u.instagram_username ? <span style={{ color: T.green }}>@{u.instagram_username}</span> : <span style={{ color: T.textMuted }}>No</span>}</td>
+                         <td style={{ padding: 16 }}>
+                            <Badge status={u.plan} />
+                         </td>
+                         <td style={{ padding: 16 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: u.is_active ? T.green : T.red }}>
+                               <div style={{ width: 6, height: 6, borderRadius: "50%", background: u.is_active ? T.green : T.red }} />
+                               {u.is_active ? "Active" : "Banned"}
+                            </div>
+                         </td>
+                         <td style={{ padding: 16, textAlign: "right" }}>
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                               <button 
+                                 onClick={() => handleAction(u.id, "reset-quota")}
+                                 title="Reset Quota"
+                                 style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, cursor: "pointer", fontSize: 12 }}
+                               >
+                                 {I.usage}
+                               </button>
+                               <button 
+                                 onClick={() => handleAction(u.id, "ban")}
+                                 title={u.is_active ? "Ban User" : "Activate User"}
+                                 style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${u.is_active ? T.red : T.green}`, background: u.is_active ? `${T.red}15` : `${T.green}15`, color: u.is_active ? T.red : T.green, cursor: "pointer", fontSize: 12 }}
+                               >
+                                  {u.is_active ? I.close : I.check}
+                               </button>
+                            </div>
+                         </td>
                       </tr>
                    ))}
                 </tbody>

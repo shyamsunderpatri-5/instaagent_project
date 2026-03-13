@@ -108,26 +108,40 @@ export const AnalyticsView = ({ token }) => {
         </div>
       </div>
 
-      <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, animationDelay: "150ms" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ fontFamily: T.fontHead, fontWeight: 700, fontSize: 16, color: T.text }}>Top Performing Posts</div>
+      {!loading && topPosts.length === 0 && (
+        <div className="fade-up" style={{ textAlign: "center", padding: "60px 40px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 24 }}>
+          <div style={{ width: 64, height: 64, background: T.primaryDim, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: T.primary }}>
+            {I.analytics}
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: T.text, marginBottom: 8 }}>No Post Data Yet</h2>
+          <p style={{ color: T.textMuted, fontSize: 13, maxWidth: 360, margin: "0 auto 24px" }}>
+            Start posting via InstaAgent to see engagement trends and top performing content here.
+          </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {topPosts.length > 0 ? topPosts.map((post, i) => (
-            <div key={post.id} style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 12, borderBottom: i < topPosts.length - 1 ? `1px solid ${T.border}` : "none" }}>
-               <img src={post.edited_photo_url} style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover" }} />
-               <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.product_name}</div>
-                  <div style={{ fontSize: 11, color: T.textMuted }}>{new Date(post.created_at).toLocaleDateString()}</div>
-               </div>
-               <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{post.reach}</div><div style={{ fontSize: 9, color: T.textMuted }}>Reach</div></div>
-                  <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 700, color: T.green }}>{post.engagement_rate}%</div><div style={{ fontSize: 9, color: T.textMuted }}>Eng.</div></div>
-               </div>
-            </div>
-          )) : <div style={{ textAlign: "center", color: T.textDim, padding: 20 }}>No post data available yet</div>}
+      )}
+
+      {topPosts.length > 0 && (
+        <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <div style={{ fontFamily: T.fontHead, fontWeight: 700, fontSize: 16, color: T.text }}>Top Performing Posts</div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {topPosts.map((post, i) => (
+              <div key={post.id} style={{ display: "flex", alignItems: "center", gap: 14, paddingBottom: 12, borderBottom: i < topPosts.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                 <img src={post.edited_photo_url} style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover" }} />
+                 <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.product_name}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>{new Date(post.created_at).toLocaleDateString()}</div>
+                 </div>
+                 <div style={{ display: "flex", gap: 12 }}>
+                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{post.reach}</div><div style={{ fontSize: 9, color: T.textMuted }}>Reach</div></div>
+                    <div style={{ textAlign: "center" }}><div style={{ fontSize: 12, fontWeight: 700, color: T.green }}>{post.engagement_rate}%</div><div style={{ fontSize: 9, color: T.textMuted }}>Eng.</div></div>
+                 </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

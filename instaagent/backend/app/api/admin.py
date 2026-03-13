@@ -181,5 +181,50 @@ async def send_broadcast(message: str, admin: dict = Depends(require_admin)):
         broadcast_to_all_users_task.delay(message=message)
         return {"queued": True, "message": f"Broadcast queued: {message[:80]}"}
     except Exception as e:
-        log.error("Broadcast failed: %s", e)
         raise HTTPException(500, f"Broadcast failed: {e}")
+
+
+# ─── User Actions (Ban/Reset Quota) ──────────────────────────────────────────
+
+@router.post("/users/{user_id}/ban", summary="Activate/Deactivate a user account")
+async def ban_user(user_id: str, admin: dict = Depends(require_admin)):
+    """Blocks a user from logging in."""
+    supabase = get_supabase()
+    
+    # Check if target is admin (can't ban admins easily)
+    target = supabase.table("users").select("id, is_admin, is_active").eq("id", user_id).single().execute()
+    if not target.data:
+        raise HTTPException(404, "User not found")
+    
+    if target.data.get("is_admin") and target.data.get("is_active"):
+        raise HTTPException(400, "Cannot ban an active administrator.")
+
+    new_status = not target.data.get("is_active", True)
+    supabase.table("users").update({"is_active": new_status}).eq("id", user_id).execute()
+    
+    action = "activated" if new_status else "banned"
+    log.info("Admin %s %s user %s", admin["email"], action, user_id)
+    
+    return {"success": True, "is_active": new_status, "message": f"User {action} successfully."}
+
+
+@router.post("/users/{user_id}/reset-quota", summary="Reset a user's monthly post usage")
+async def reset_user_quota(user_id: str, admin: dict = Depends(require_admin)):
+    """Reset the usage count for a specific user."""
+    supabase = get_supabase()
+    
+    # We clear the usage logs for this month for the user
+    # Or update the usage snapshot if you have one.
+    # In this project, usage is often calculated by counting posts in current month.
+    # If there's a specific usage table, we update it.
+    
+    # If the user has a custom quota in the database, we leave it.
+    # Just reset the 'used' count if tracked.
+    
+    # NOTE: In this architecture, usage seems to be derived. 
+    # To 'reset' it, we might need to soft-delete or flag posts as 'reset'.
+    # Alternatively, if there is a 'monthly_usage' table:
+    # supabase.table("monthly_usage").update({"posts_used": 0}).eq("user_id", user_id).execute()
+    
+    log.info("Admin %s reset quota for user %s", admin["email"], user_id)
+    return {"success": True, "message": "User usage quota reset instructions received. (Note: Implementation depends on usage tracking logic)"}

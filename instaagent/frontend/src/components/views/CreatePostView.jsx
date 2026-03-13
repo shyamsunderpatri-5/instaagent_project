@@ -151,7 +151,21 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   const captionHi = postData?.caption_hindi  || "";
   const postReady = postData?.status === "ready" || !!(postData?.edited_photo_url);
 
-  const CATEGORIES = ["jewellery","clothing","food","handmade","other","electronics","cosmetics","furniture"];
+  const CATEGORIES = [
+  "🛍️ Product Showcase",
+  "💡 Tips & Tutorials",
+  "🏢 Behind the Scenes",
+  "🤝 Customer Review",
+  "📢 Major Announcement",
+  "🎨 Design Inspo",
+  "📈 Growth Update",
+  "💼 Professional Service",
+  "🏪 Local Business",
+  "🥗 Health & Wellness",
+  "👗 Fashion & Style",
+  "🍔 Food & Dining",
+  "✈️ Travel & Stay",
+];
 
   return (
     <div style={{ padding: "28px 32px", maxWidth: 720 }}>

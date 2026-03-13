@@ -763,3 +763,106 @@ async def reset_password(body: ResetPasswordRequest):
     log.info("Password reset completed | user_id=%s", user_id)
 
     return {"message": "Password reset successfully. You can now sign in with your new password."}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GOOGLE OAUTH
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/google", summary="Initiate Google OAuth login")
+async def google_login():
+    """
+    Returns the Google OAuth authorization URL.
+    The frontend should redirect the user to this URL.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(500, "Google OAuth is not configured.")
+    
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "select_account"
+    }
+    from urllib.parse import urlencode
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return {"auth_url": auth_url}
+
+
+@router.get("/google/callback", summary="Handle Google OAuth callback")
+async def google_callback(code: str):
+    """
+    Exchanges authorization code for tokens and issues a JWT.
+    """
+    import httpx
+    
+    # 1. Exchange code for access token
+    token_url = "https://oauth2.googleapis.com/token"
+    data = {
+        "code": code,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
+        "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
+        "grant_type": "authorization_code",
+    }
+    
+    async with httpx.AsyncClient() as client:
+        res = await client.post(token_url, data=data)
+        if res.status_code != 200:
+            log.error("Google token exchange failed: %s", res.text)
+            raise HTTPException(400, "Failed to authenticate with Google.")
+        
+        tokens = res.json()
+        id_token_raw = tokens.get("id_token")
+        
+        # 2. Get user info (skip signature verification for now if you trust Google's certs)
+        # In production, use google-auth or similar to verify.
+        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+        info_res = await client.get(user_info_url, headers=headers)
+        user_info = info_res.json()
+        
+    email = user_info.get("email").lower()
+    name = user_info.get("name", "Google User")
+    
+    supabase = get_supabase()
+    
+    # 3. Find or create user
+    existing = supabase.table("users").select("*").eq("email", email).execute()
+    
+    if existing.data:
+        user = existing.data[0]
+        user_id = user["id"]
+        # Update name if missing
+        if not user.get("full_name"):
+            supabase.table("users").update({"full_name": name}).eq("id", user_id).execute()
+    else:
+        user_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        new_user = {
+            "id": user_id,
+            "email": email,
+            "full_name": name,
+            "plan": "free",
+            "is_active": True,
+            "created_at": now,
+            "updated_at": now,
+            # No password_hash for Google users (they use OAuth)
+        }
+        supabase.table("users").insert(new_user).execute()
+        log.info("New user registered via Google | id=%s email=%s", user_id, email)
+
+    # 4. Issue JWT
+    token = _issue_jwt(user_id)
+    
+    return {
+        "token": token,
+        "user": {
+            "id": user_id,
+            "email": email,
+            "full_name": name,
+            "plan": existing.data[0].get("plan", "free") if existing.data else "free"
+        }
+    }

@@ -15,7 +15,7 @@ import { TelegramView } from "./views/TelegramBotView";
 import { AggregatorView } from "./views/AggregatorView";
 import { AdminAggregatorView } from "./views/AdminAggregatorView";
 
-import { OnboardingWizard } from "./views/OnboardingWizard";
+import { OnboardingView } from "./views/OnboardingView";
 
 export function InstaAgent() {
   const [view,    setView]    = useState("dashboard");
@@ -147,9 +147,33 @@ export function InstaAgent() {
                 <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Password</label>
                 <input type="password" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} placeholder="••••••••" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
               </div>
-              <button disabled={loading} style={{ width: "100%", padding: 14, background: T.primary, color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                 {loading ? <Spinner size={18} color="#fff" /> : authForm.isLogin ? "Sign In" : "Create Account"}
-              </button>
+              <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ width: "100%", padding: 12, background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "all .2s" }}
+                >
+                  {loading ? <Spinner size={18} color="#fff" /> : (authForm.isLogin ? "Sign In" : "Register")}
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+                  <div style={{ flex: 1, height: 1, background: T.border }} />
+                  <span style={{ fontSize: 12, color: T.textMuted }}>OR</span>
+                  <div style={{ flex: 1, height: 1, background: T.border }} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await api.get("/api/v1/auth/google");
+                      if (res.auth_url) window.location.href = res.auth_url;
+                    } catch (e) { show(e.message, "error"); }
+                  }}
+                  style={{ width: "100%", padding: 12, background: "#fff", color: "#000", border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, transition: "all .2s" }}
+                >
+                  <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: 18, height: 18 }} />
+                  Continue with Google
+                </button>
            </form>
            
            <div style={{ marginTop: 20, textAlign: "center" }}>
@@ -162,10 +186,10 @@ export function InstaAgent() {
     );
   }
 
-  // Onboarding Wizard
+  // Onboarding View
   if (needsOnboarding) {
     return (
-      <OnboardingWizard 
+      <OnboardingView 
         user={user} 
         token={token} 
         onUserUpdate={setUser}
