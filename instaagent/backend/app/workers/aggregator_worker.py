@@ -1,6 +1,7 @@
 # backend/app/workers/aggregator_worker.py
 import asyncio
 import logging
+from datetime import datetime, timezone, timedelta
 from app.workers.celery_app import celery_app
 from app.services.aggregator_service import aggregator_service
 from app.services.telegram_service import send_message
@@ -20,12 +21,18 @@ def sync_aggregator_posts(aggregator_account_id: str):
     logger.info("Syncing aggregator posts for account %s", aggregator_account_id)
     
     # 1. Run sync
-    loop = asyncio.get_event_loop()
-    new_posts_count = loop.run_until_complete(aggregator_service.fetch_and_save_posts(aggregator_account_id))
-    
+    try:
+        new_posts_count = asyncio.run(aggregator_service.fetch_and_save_posts(aggregator_account_id))
+    except Exception as e:
+        logger.error("Sync failed for %s: %s", aggregator_account_id, e)
+        raise
+
     # 2. Check for alerts
     if new_posts_count > 0:
-        loop.run_until_complete(_maybe_alert_user(aggregator_account_id))
+        try:
+            asyncio.run(_maybe_alert_user(aggregator_account_id))
+        except Exception as e:
+            logger.error("Alert check failed for %s: %s", aggregator_account_id, e)
     
     return new_posts_count
 
@@ -47,18 +54,20 @@ async def _maybe_alert_user(account_id: str):
     if not acc.get("alert_enabled") or not user or not user.get("telegram_id"):
         return
 
-    # 2. Find high engagement posts from this account in the last sync (or last hour)
-    # We look for posts where engagement_rate > threshold and it's from a competitor
+    # 2. Find high engagement posts from this account in the last 15 minutes (to avoid notification spam)
+    # Target competitor posts where engagement_rate > threshold
     if acc["account_type"] != "competitor":
         return
 
     threshold = acc.get("alert_threshold_er", 3.0)
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
     
     posts_resp = supabase.table("aggregated_posts") \
         .select("ig_post_id, caption, engagement_rate, media_url") \
         .eq("aggregator_account_id", account_id) \
         .gt("engagement_rate", threshold) \
-        .order("posted_at", desc=True) \
+        .gt("created_at", cutoff) \
+        .order("engagement_rate", desc=True) \
         .limit(1) \
         .execute()
     

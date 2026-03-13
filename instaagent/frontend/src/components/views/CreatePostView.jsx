@@ -31,29 +31,58 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   // Poll for edited photo URL after upload
   useEffect(() => {
     let interval;
+    let startTime = Date.now();
+    const TIMEOUT_MS = 120000; // 120s timeout
+
     if (step === 3 && postData?.post_id && !postData.edited_photo_url) {
       interval = setInterval(async () => {
+        // Timeout check
+        if (Date.now() - startTime > TIMEOUT_MS) {
+          setError("Processing is taking longer than expected. Please check 'My Posts' later.");
+          clearInterval(interval);
+          return;
+        }
+
         try {
           const res = await fetch(`${API}/api/v1/posts/${postData.post_id}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (res.ok) {
             const data = await res.json();
-            if (data.edited_photo_url || data.status === "ready") {
+            if (data.edited_photo_url || data.status === "ready" || data.status === "failed") {
               setPostData(prev => ({ ...prev, ...data }));
               clearInterval(interval);
+              if (data.status === "failed") setError(data.error_message || "Processing failed");
             }
           }
-        } catch (e) { console.error("Polling error:", e); }
+        } catch (e) { 
+          console.error("Polling error:", e);
+        }
       }, 3000);
     }
     return () => clearInterval(interval);
   }, [step, postData, token]);
 
   const handleFiles = (files) => {
-    const imgs = Array.from(files).filter(f => f.type.startsWith("image/"));
-    if (imgs.length === 0) { setError("Please select valid image files (JPG, PNG, WebP, etc.)"); return; }
-    setError(""); setPhotos(imgs);
+    const imgs = Array.from(files).filter(f => {
+      const type = f.type.toLowerCase();
+      const name = f.name.toLowerCase();
+      return type.startsWith("image/") || name.endsWith(".heic") || name.endsWith(".heif");
+    });
+
+    if (imgs.length === 0) {
+      setError("Please select valid image files (JPG, PNG, WebP, HEIC).");
+      return;
+    }
+    
+    // HEIC warning: browsers don't support native preview for HEIC
+    if (imgs[0].name.toLowerCase().endsWith(".heic") || imgs[0].name.toLowerCase().endsWith(".heif")) {
+      setError("HEIC detected. We will process it, but preview may not show in browser.");
+    } else {
+      setError("");
+    }
+
+    setPhotos(imgs);
   };
 
   const runProcess = async () => {

@@ -123,17 +123,29 @@ export const AggregatorView = ({ token, user }) => {
     }
   };
 
-  const handleUpdateAlerts = async (accId, enabled, threshold) => {
-    try {
-      await api.patch(`/api/v1/aggregator/accounts/${accId}/alerts`, {
-        alert_enabled: enabled,
-        alert_threshold_er: parseFloat(threshold)
-      }, token);
-      show(t("aggregator.alerts_updated_msg"));
-      setAccounts(accounts.map(a => a.id === accId ? { ...a, alert_enabled: enabled, alert_threshold_er: threshold } : a));
-    } catch (err) {
-      show(err.message, "error");
-    }
+  // Debounced Alert Update helper to avoid API firehose during slider movement
+  const [debouncedTimers, setDebouncedTimers] = useState({});
+  const handleUpdateAlerts = (accId, enabled, threshold) => {
+    // 1. Pessimistic UI Update (Immediate)
+    setAccounts(accounts.map(a => a.id === accId ? { ...a, alert_enabled: enabled, alert_threshold_er: threshold } : a));
+
+    // 2. Debounce API Call (500ms)
+    if (debouncedTimers[accId]) clearTimeout(debouncedTimers[accId]);
+    
+    const timer = setTimeout(async () => {
+      try {
+        await api.patch(`/api/v1/aggregator/accounts/${accId}/alerts`, {
+          alert_enabled: enabled,
+          alert_threshold_er: parseFloat(threshold)
+        }, token);
+        show(t("aggregator.alerts_updated_msg"));
+      } catch (err) {
+        show(err.message, "error");
+        fetchData(); // Reset on error
+      }
+    }, 500);
+
+    setDebouncedTimers(prev => ({ ...prev, [accId]: timer }));
   };
 
   const saveToPosts = async (postId) => {

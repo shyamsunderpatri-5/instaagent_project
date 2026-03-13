@@ -35,6 +35,7 @@ CATEGORY_HINTS = {
 }
 
 
+@retry_on_exception(retries=3)
 async def generate_caption(
     product_name: str,
     product_type: str,
@@ -102,12 +103,13 @@ async def generate_caption(
     }}"""
 
         response = await _get_client().messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20240620",
             max_tokens=1200,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = response.content[0].text.strip()
+        # Clean up possible markdown junk
         raw = re.sub(r"^```json\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
         return json.loads(raw)
@@ -123,6 +125,7 @@ async def generate_caption(
         }
 
 
+@retry_on_exception(retries=2)
 async def generate_comment_reply(
     comment_text: str,
     product_name: str,
@@ -149,7 +152,7 @@ async def generate_comment_reply(
     Write a warm, brief reply that thanks them and gently encourages a purchase/DM."""
 
         response = await _get_client().messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20240620",
             max_tokens=200,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -160,6 +163,7 @@ async def generate_comment_reply(
         return "Thank you! DM us for more info."
 
 
+@retry_on_exception(retries=3)
 async def analyze_product_photo(image_base64: str) -> dict:
     """
     Use Claude Vision to analyze a product photo.
@@ -178,7 +182,7 @@ async def analyze_product_photo(image_base64: str) -> dict:
 
     try:
         response = await _get_client().messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20240620",
             max_tokens=400,
             messages=[
                 {
@@ -194,7 +198,7 @@ async def analyze_product_photo(image_base64: str) -> dict:
                         },
                         {
                             "type": "text",
-                            "text": "Analyze this product photo for an Indian small business Instagram post. Return ONLY valid JSON.",
+                            "text": "Analyze this product photo for an Indian small business Instagram post. Return ONLY valid JSON with keys: product_type, colors, materials, suggested_name, quality_score, improvements.",
                         },
                     ],
                 }
@@ -256,7 +260,7 @@ async def get_seo_hashtags(
     """
 
     response = await _get_client().messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-3-5-sonnet-20240620",
         max_tokens=600,
         system=system,
         messages=[{"role": "user", "content": prompt}],

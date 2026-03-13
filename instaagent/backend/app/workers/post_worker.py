@@ -31,12 +31,15 @@ def ist_time_to_utc(ist_time_str: str, date: datetime | None = None) -> datetime
     Returns a UTC-aware datetime.
     """
     if date is None:
-        date = datetime.now(timezone.utc)
+        # Use current date in IST to avoid "yesterday" or "tomorrow" shifts during UTC conversion
+        now_utc = datetime.now(timezone.utc)
+        date = now_utc + IST_OFFSET
+    
     hour, minute = map(int, ist_time_str.split(":"))
-    # Build a naive IST datetime and subtract IST offset to get UTC
-    ist_naive = date.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=None)
-    utc_dt = ist_naive - IST_OFFSET
-    return utc_dt.replace(tzinfo=timezone.utc)
+    # Build naive IST datetime and normalize
+    ist_dt = date.replace(hour=hour, minute=minute, second=0, microsecond=0, tzinfo=None)
+    utc_dt = (ist_dt - IST_OFFSET).replace(tzinfo=timezone.utc)
+    return utc_dt
 
 
 def parse_scheduled_at(scheduled_at_str: str) -> datetime:
@@ -122,6 +125,11 @@ async def _publish_single_post(supabase, post: dict) -> None:
     telegram_id      = user.get("telegram_id")
     lang             = user.get("language", "hi")
 
+    # Guard — Post status must be 'scheduled'
+    if post.get("status") != "scheduled":
+        logger.warning("Post worker skipped | status=%s | post_id=%s", post.get("status"), post_id)
+        return
+
     # Guard — Instagram must be connected
     if not instagram_token or not instagram_id:
         supabase.table("posts").update({
@@ -205,9 +213,11 @@ async def _publish_single_post(supabase, post: dict) -> None:
 
         # ── Instagram rate-limit: reschedule +1 hour instead of failing ───────
         if "code 32" in err_str.lower() or "rate" in err_str.lower():
+            # Exponentially backoff or fixed 1h shift
             new_time = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
             supabase.table("posts").update({
                 "scheduled_at":  new_time,
+                "status":        "scheduled", # Re-queue
                 "error_message": f"Rate limit hit — rescheduled to {new_time[:16]} UTC",
             }).eq("id", post_id).execute()
 

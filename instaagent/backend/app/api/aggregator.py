@@ -123,9 +123,30 @@ async def refresh_account(
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
-    resp = supabase.table("aggregator_accounts").select("id").eq("id", str(account_id)).eq("user_id", current_user["id"]).execute()
+    user_id = str(current_user["id"])
+    
+    # 1. Verify existence and ownership
+    resp = supabase.table("aggregator_accounts") \
+        .select("id") \
+        .eq("id", str(account_id)) \
+        .eq("user_id", user_id) \
+        .execute()
+        
     if not resp.data:
         raise HTTPException(status_code=404, detail="Account not found")
+        
+    # 2. Redis Cooldown (5 mins) — prevent duplicate sync spam
+    redis_client = get_redis()
+    rate_key = f"aggregator_refresh_cooldown:{account_id}"
+    
+    if redis_client.exists(rate_key):
+        ttl = redis_client.ttl(rate_key)
+        raise HTTPException(
+            status_code=429,
+            detail=f"This account was recently synced. Please wait {ttl} seconds."
+        )
+    
+    redis_client.setex(rate_key, 300, "1")
         
     sync_aggregator_posts.delay(str(account_id))
     return {"message": "Sync triggered"}

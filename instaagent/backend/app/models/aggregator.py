@@ -18,7 +18,7 @@ class AggregatorAccount(AggregatorAccountBase):
     followers_count: int = 0
     following_count: int = 0
     alert_enabled: bool = False
-    alert_threshold_er: float = 3.0
+    alert_threshold_er: float = Field(default=3.0, ge=0.5, le=20.0)
     created_at: datetime
     updated_at: datetime
 
@@ -68,7 +68,7 @@ class ContentFormatResponse(BaseModel):
 class FrequencyStats(BaseModel):
     day: str
     owned_count: int
-    competitor_avg_count: int
+    competitor_avg_count: float
 
 class FrequencyResponse(BaseModel):
     heatmap: List[FrequencyStats]
@@ -79,11 +79,11 @@ class AccountComparisonStats(BaseModel):
     username: str
     followers: int
     avg_engagement: float
-    posts_per_week: int
+    posts_per_week: float
     top_hashtags: List[str]
 
 class ComparisonResponse(BaseModel):
-    owned: AccountComparisonStats
+    owned: Optional[AccountComparisonStats] = None
     competitors: List[AccountComparisonStats]
 
 class HashtagStats(BaseModel):
@@ -96,4 +96,4 @@ class HashtagResponse(BaseModel):
 
 class AlertSettingsUpdate(BaseModel):
     alert_enabled: bool
-    alert_threshold_er: float
+    alert_threshold_er: float = Field(..., ge=0.5, le=20.0)

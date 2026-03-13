@@ -8,9 +8,9 @@ from app.workers.celery_app import celery_app
 from app.services.photo_service import full_photo_pipeline, image_to_base64
 from app.services.caption_service import generate_caption, analyze_product_photo
 from app.services.telegram_service import send_message, send_photo
-from app.db.supabase import get_supabase
-from app.utils.crypto import decrypt_token
 import httpx
+import time
+from app.db.supabase import get_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +95,17 @@ async def _process_photo_async(
         _log("STEP1_DOWNLOAD", post_id, f"FAILED: {e}", error=True)
         raise
 
-    # ── Step 2 & 3: Photo processing pipeline ────────────────────────────────
+    # Step 2 & 3: Photo processing pipeline ────────────────────────────────
     _log("STEP2_PIPELINE", post_id, f"calling full_photo_pipeline skip_editing={not is_enhanced}")
     try:
         # if is_enhanced is False, we skip all filters/sharpening to keep original
         pipeline_result = await full_photo_pipeline(original_bytes, skip_editing=not is_enhanced)
         edited_bytes = pipeline_result["edited_bytes"]
+        enhance_failed = pipeline_result.get("enhance_failed", False)
+        
+        if enhance_failed:
+            _log("STEP2_PIPELINE", post_id, "enhancement failed, using original/sharpened bytes", error=True)
+            
         _log("STEP2_PIPELINE", post_id, f"success edited_size={len(edited_bytes)} bytes")
     except Exception as e:
         _log("STEP2_PIPELINE", post_id, f"FAILED: {e}", error=True)
@@ -125,7 +130,8 @@ async def _process_photo_async(
     # ── Step 4: Analyze with Claude Vision ────────────────────────────────────
     _log("STEP4_VISION", post_id, "calling Claude Vision analysis")
     try:
-        photo_b64 = image_to_base64(edited_bytes)
+        # PLAN: Use original_bytes for better vision accuracy (untouched by sharpening/filters)
+        photo_b64 = image_to_base64(original_bytes)
         vision_data = await analyze_product_photo(photo_b64)
         if product_type == "other" and vision_data.get("product_type"):
             product_type = vision_data["product_type"]
@@ -157,12 +163,27 @@ async def _process_photo_async(
 
     # ── Step 6: Upload edited photo(s) to Supabase Storage ────────────────────
     _log("STEP6_UPLOAD", post_id, "uploading edited photo to Supabase")
+    
+    async def _upload_with_retry(bucket, path, data, options):
+        # Implementation of exponential backoff for storage uploads
+        for i in range(3):
+            try:
+                supabase.storage.from_(bucket).upload(path=path, file=data, file_options=options)
+                return True
+            except Exception as e:
+                wait = (i + 1) * 2
+                _log("STEP6_UPLOAD", post_id, f"Upload retry {i+1} after {wait}s: {e}", error=True)
+                if i < 2: time.sleep(wait)
+                else: raise
+        return False
+
     try:
         edited_filename = f"posts/{user_id}/{post_id}_edited.jpg"
-        supabase.storage.from_("post-photos").upload(
-            path=edited_filename,
-            file=edited_bytes,
-            file_options={"content-type": "image/jpeg"},
+        await _upload_with_retry(
+            "post-photos", 
+            edited_filename, 
+            edited_bytes, 
+            {"content-type": "image/jpeg"}
         )
         edited_url = supabase.storage.from_("post-photos").get_public_url(edited_filename)
         _log("STEP6_UPLOAD", post_id, f"edited_url={edited_url[:80]}")
@@ -174,10 +195,11 @@ async def _process_photo_async(
     if second_image_bytes:
         try:
             secondary_filename = f"posts/{user_id}/{post_id}_secondary.jpg"
-            supabase.storage.from_("post-photos").upload(
-                path=secondary_filename,
-                file=second_image_bytes,
-                file_options={"content-type": "image/jpeg"},
+            await _upload_with_retry(
+                "post-photos",
+                secondary_filename,
+                second_image_bytes,
+                {"content-type": "image/jpeg"}
             )
             secondary_url = supabase.storage.from_("post-photos").get_public_url(secondary_filename)
             _log("STEP6_UPLOAD", post_id, f"secondary_url={secondary_url[:80]}")

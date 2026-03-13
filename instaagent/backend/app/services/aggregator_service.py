@@ -26,8 +26,12 @@ class AggregatorService:
     async def fetch_and_save_posts(self, aggregator_account_id: UUID) -> int:
         """Fetch latest posts for an account and save to DB."""
         supabase = self._get_supabase()
-        # 1. Get account details
-        acc_resp = supabase.table("aggregator_accounts").select("*").eq("id", str(aggregator_account_id)).execute()
+        # 1. Get account details — include user_id filter for safety
+        acc_resp = supabase.table("aggregator_accounts") \
+            .select("*") \
+            .eq("id", str(aggregator_account_id)) \
+            .execute()
+            
         if not acc_resp.data:
             logger.error("Aggregator account %s not found", aggregator_account_id)
             return 0
@@ -110,10 +114,15 @@ class AggregatorService:
                 "posted_at": p.get("timestamp"),
             }
             try:
-                supabase.table("aggregated_posts").upsert(post_data, on_conflict="aggregator_account_id, ig_post_id").execute()
+                # Always include user_id in the upsert data for security
+                post_data["user_id"] = user_id
+                supabase.table("aggregated_posts").upsert(
+                    post_data, 
+                    on_conflict="aggregator_account_id, ig_post_id"
+                ).execute()
                 saved_count += 1
             except Exception as e:
-                logger.error("Error saving post %s: %s", p['id'], e)
+                logger.error("Error saving post %s for user %s: %s", p['id'], user_id, e)
 
         # 4. Update status and metrics
         update_data = {
@@ -142,12 +151,14 @@ class AggregatorService:
         valid_ids = [aid for aid in account_ids if str(aid) in owned_ids]
         
         if not valid_ids:
+            logger.warning("Access denied to aggregator accounts for user %s", user_id_str)
             return {"error": "No valid accounts found or access denied"}
 
         # 2. Fetch recent posts from these accounts in a single query (Fix N+1)
         resp = supabase.table("aggregated_posts")\
             .select("caption, likes, comments, hashtags, posted_at, media_type, engagement_rate")\
             .in_("aggregator_account_id", [str(aid) for aid in valid_ids])\
+            .eq("user_id", user_id_str) \
             .order("posted_at", desc=True)\
             .limit(30)\
             .execute()
@@ -198,7 +209,7 @@ Generate:
 6. top_format: The media_type with highest impact.
 7. weak_spots: 2 things these accounts are missing.
 
-Return ONLY this JSON structure:
+Return ONLY this JSON structure (Raw JSON string):
 {{
   "post_ideas": ["..."],
   "trend_summaries": ["..."],

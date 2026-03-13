@@ -15,7 +15,7 @@ export const AnalyticsDashboard = ({ formatStats, freqData, compStats, tagStats,
           />
           <StatCard 
             title={t("aggregator.top_format")} 
-            value={formatStats.sort((a,b) => b.avg_engagement - a.avg_engagement)[0]?.media_type || "—"} 
+            value={[...formatStats].sort((a,b) => b.avg_engagement - a.avg_engagement)[0]?.media_type || "—"} 
             subtitle={t("aggregator.highest_er")}
             icon={I.zap}
           />

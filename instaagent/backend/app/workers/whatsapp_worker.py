@@ -170,6 +170,17 @@ async def _post_to_instagram_and_confirm(
         return
 
     post = post_result.data
+    
+    # 2. Status Guard — prevent posting if not fully processed or already posted
+    if post.get("status") != "ready":
+        _status = post.get("status", "unknown")
+        logger.warning("WA post skipped | status=%s | post_id=%s", _status, post_id)
+        if _status == "posted":
+            return # Already done
+        else:
+            await send_wa_text(phone, f"⚠️ This photo isn't ready yet (Status: {_status}). Please wait for the preview.")
+            return
+
     user = post.get("users", {})
 
     from app.utils.crypto import decrypt_token
