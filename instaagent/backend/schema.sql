@@ -212,3 +212,45 @@ CREATE TRIGGER aggregator_accounts_updated_at
 CREATE INDEX IF NOT EXISTS idx_aggregator_user_id ON aggregator_accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_aggregated_posts_account_id ON aggregated_posts(aggregator_account_id);
 CREATE INDEX IF NOT EXISTS idx_aggregated_posts_user_id ON aggregated_posts(user_id);
+
+-- ── Aggregator RPCs ──────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION get_aggregator_user_stats()
+RETURNS TABLE (
+    id UUID,
+    full_name TEXT,
+    email TEXT,
+    account_count BIGINT,
+    post_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        u.id, 
+        u.full_name, 
+        u.email, 
+        COUNT(DISTINCT aa.id) as account_count,
+        COUNT(DISTINCT ap.id) as post_count
+    FROM users u
+    LEFT JOIN aggregator_accounts aa ON aa.user_id = u.id
+    LEFT JOIN aggregated_posts ap ON ap.aggregator_account_id = aa.id
+    GROUP BY u.id, u.full_name, u.email
+    HAVING COUNT(DISTINCT aa.id) > 0;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION get_trending_hashtags(hashtag_limit INTEGER DEFAULT 10)
+RETURNS TABLE (
+    tag TEXT,
+    count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        unnest(hashtags) as tag,
+        COUNT(*) as count
+    FROM aggregated_posts
+    GROUP BY tag
+    ORDER BY count DESC
+    LIMIT hashtag_limit;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

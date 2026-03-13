@@ -13,6 +13,7 @@ import { AdminView } from "./views/AdminView";
 import { SettingsView } from "./views/SettingsView";
 import { TelegramView } from "./views/TelegramBotView";
 import { AggregatorView } from "./views/AggregatorView";
+import { AdminAggregatorView } from "./views/AdminAggregatorView";
 
 import { OnboardingWizard } from "./views/OnboardingWizard";
 
@@ -190,6 +191,7 @@ export function InstaAgent() {
                     {view === "analytics" && <AnalyticsView token={token} />}
                     {view === "billing"   && <BillingView user={user} usage={usage} token={token} />}
                     {view === "admin"     && <AdminView token={token} user={user} />}
+                    {view === "admin_aggregator" && <AdminAggregatorView token={token} />}
                     {view === "settings"  && <SettingsView user={user} token={token} onUserUpdate={(u) => { setUser(u); fetchBase(token); }} />}
                     {view === "telegram"  && <TelegramView user={user} />}
                     {view === "aggregator"&& <AggregatorView token={token} user={user} />}

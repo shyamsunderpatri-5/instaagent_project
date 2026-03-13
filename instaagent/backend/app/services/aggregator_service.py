@@ -3,6 +3,7 @@ import logging
 import httpx
 import json
 import re
+import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -233,6 +234,62 @@ Return ONLY this JSON structure:
             resp.raise_for_status()
             data = resp.json()
             return data.get("business_discovery", {}).get("media", {}).get("data", [])
+
+    async def save_to_my_posts(self, aggregated_post_id: UUID, user_id: UUID) -> Dict[str, Any]:
+        """Copy an aggregated post to the user's main posts table."""
+        supabase = self._get_supabase()
+        user_id_str = str(user_id)
+        
+        # 1. Fetch aggregated post
+        resp = supabase.table("aggregated_posts") \
+            .select("*, aggregator_accounts(instagram_username)") \
+            .eq("id", str(aggregated_post_id)) \
+            .eq("user_id", user_id_str) \
+            .single() \
+            .execute()
+        
+        if not resp.data:
+            return {"error": "Aggregated post not found"}
+            
+        post = resp.data
+        
+        # 2. Create main post entry
+        new_post_id = str(uuid.uuid4())
+        main_post = {
+            "id": new_post_id,
+            "user_id": user_id_str,
+            "product_name": f"Inspiration: {post['aggregator_accounts']['instagram_username']}",
+            "original_photo_url": post["media_url"],
+            "caption_english": post["caption"],
+            "caption_hindi": post["caption"], # Placeholder
+            "hashtags": post["hashtags"],
+            "status": "ready",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        res = supabase.table("posts").insert(main_post).execute()
+        return res.data[0]
+
+    async def get_trending_hashtags(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Admin only: Get top trending hashtags across all aggregated content."""
+        supabase = self._get_supabase()
+        # Note: In a production scale, this would be a materialized view or aggregated in Redis/Elasticsearch.
+        # For our MVP scale, we pull recent posts and count in-memory or via RPC.
+        # Let's use an RPC for performance if one exists, otherwise manual aggregation.
+        try:
+            rpc_res = supabase.rpc("get_trending_hashtags", {"hashtag_limit": limit}).execute()
+            return rpc_res.data
+        except:
+            # Fallback to manual aggregation (less efficient)
+            resp = supabase.table("aggregated_posts").select("hashtags").limit(1000).execute()
+            all_tags = []
+            for row in (resp.data or []):
+                if row.get("hashtags"):
+                    all_tags.extend(row["hashtags"])
+            
+            from collections import Counter
+            counts = Counter(all_tags).most_common(limit)
+            return [{"tag": tag, "count": count} for tag, count in counts]
 
     def _extract_hashtags(self, caption: str) -> List[str]:
         if not caption:

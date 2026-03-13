@@ -92,6 +92,7 @@ async def get_posts(
     return resp.data or []
 
 @router.post("/insights", response_model=AIInsightResponse)
+@router.post("/ai-analyze", response_model=AIInsightResponse, include_in_schema=False)
 async def get_insights(
     req: AIInsightRequest, 
     current_user: dict = Depends(check_aggregator_plan)
@@ -118,25 +119,88 @@ async def get_insights(
 
 # ── Admin Endpoints ──────────────────────────────────────────────────────────
 
+@router.post("/refresh/{account_id}")
+async def refresh_account(
+    account_id: UUID, 
+    current_user: dict = Depends(check_aggregator_plan)
+):
+    # Verify account belongs to user (RLS handles this but explicit check is safer for background tasks)
+    supabase = get_supabase()
+    resp = supabase.table("aggregator_accounts").select("id").eq("id", str(account_id)).eq("user_id", current_user["id"]).execute()
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Account not found")
+        
+    sync_aggregator_posts.delay(str(account_id))
+    return {"message": "Sync triggered"}
+
+@router.post("/posts/{post_id}/save")
+async def save_aggregated_post(
+    post_id: UUID, 
+    current_user: dict = Depends(check_aggregator_plan)
+):
+    res = await aggregator_service.save_to_my_posts(post_id, current_user["id"])
+    if "error" in res:
+        raise HTTPException(status_code=404, detail=res["error"])
+    return res
+
+# ── Admin Endpoints ──────────────────────────────────────────────────────────
+
 @router.get("/admin/stats")
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin access required")
     
     supabase = get_supabase()
-    # Quick count of accounts and posts
     acc_count = supabase.table("aggregator_accounts").select("id", count="exact").execute().count
     post_count = supabase.table("aggregated_posts").select("id", count="exact").execute().count
     
-    # Calculate actual active aggregator users
     active_users_resp = supabase.table("users") \
         .select("id", count="exact") \
         .eq("plan", "aggregator") \
         .eq("is_active", True) \
         .execute()
     
+    # Get user list with aggregator account counts
+    users_with_accounts = supabase.rpc("get_aggregator_user_stats").execute()
+    
     return {
         "total_tracked_accounts": acc_count,
         "total_aggregated_posts": post_count,
         "active_users": active_users_resp.count or 0,
+        "user_details": users_with_accounts.data or []
     }
+
+@router.get("/admin/trends")
+async def get_admin_trends(current_user: dict = Depends(get_current_user)):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    trends = await aggregator_service.get_trending_hashtags(limit=20)
+    return {"trends": trends}
+
+@router.patch("/admin/posts/{post_id}")
+async def moderate_post(
+    post_id: UUID, 
+    update_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    supabase = get_supabase()
+    # Admins can update any post (e.g., hidden=true)
+    # Note: If 'hidden' column is missing, run: ALTER TABLE aggregated_posts ADD COLUMN hidden BOOLEAN DEFAULT FALSE;
+    resp = supabase.table("aggregated_posts").update(update_data).eq("id", str(post_id)).execute()
+    return {"updated": True, "post": resp.data[0] if resp.data else None}
+
+@router.delete("/admin/posts/{post_id}")
+async def admin_delete_post(
+    post_id: UUID, 
+    current_user: dict = Depends(get_current_user)
+):
+    if not current_user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    supabase = get_supabase()
+    resp = supabase.table("aggregated_posts").delete().eq("id", str(post_id)).execute()
+    return {"deleted": True, "post_id": post_id}

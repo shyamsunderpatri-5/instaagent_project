@@ -3,6 +3,10 @@ import { useState, useEffect } from "react";
 import { T, I, Badge, Spinner, useToast, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 
+import { AggregatorAccountCard } from "./aggregator/AggregatorAccountCard";
+import { AggregatedPostCard } from "./aggregator/AggregatedPostCard";
+import { AIInsightsPanel } from "./aggregator/AIInsightsPanel";
+
 export const AggregatorView = ({ token, user }) => {
   const [accounts, setAccounts] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -55,6 +59,20 @@ export const AggregatorView = ({ token, user }) => {
     }
   };
 
+  const handleRefresh = async (accId) => {
+    setSyncing(true);
+    try {
+      await api.post(`/api/v1/aggregator/refresh/${accId}`, {}, token);
+      show(t("aggregator.refresh_triggered"));
+      setSyncPending(true);
+      setTimeout(() => setSyncPending(false), 20000);
+    } catch (err) {
+      show(err.message, "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const generateInsights = async () => {
     if (accounts.length === 0) return;
     setSyncing(true);
@@ -98,16 +116,15 @@ export const AggregatorView = ({ token, user }) => {
             <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>{t("aggregator.tracked_accounts")}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {accounts.map(acc => (
-                <div key={acc.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, background: T.surfaceAlt, borderRadius: 14, border: `1px solid ${T.border}` }}>
-                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: acc.account_type === "owned" ? T.primaryDim : T.accentDim, display: "flex", alignItems: "center", justifyContent: "center", color: acc.account_type === "owned" ? T.primary : T.accent }}>{I.ig}</div>
-                   <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700 }}>@{acc.instagram_username}</div>
-                      <div style={{ fontSize: 11, color: T.textMuted }}>{t(`aggregator.type_${acc.account_type}`)}</div>
-                   </div>
-                   <Badge 
-                     status={acc.last_synced_at ? "active" : "trialing"} 
-                     text={acc.last_synced_at ? t("aggregator.synced") : t("aggregator.syncing")}
-                   />
+                <div key={acc.id} style={{ position: "relative" }}>
+                   <AggregatorAccountCard acc={acc} t={t} />
+                   <button 
+                     onClick={() => handleRefresh(acc.id)}
+                     style={{ position: "absolute", right: 8, top: 8, background: "transparent", border: "none", color: T.textDim, cursor: "pointer", padding: 4 }}
+                     title={t("aggregator.refresh")}
+                   >
+                     {I.refresh}
+                   </button>
                 </div>
               ))}
               {accounts.length === 0 && <div style={{ textAlign: "center", color: T.textDim, padding: 20, fontSize: 13 }}>{t("aggregator.no_accounts")}</div>}
@@ -119,30 +136,7 @@ export const AggregatorView = ({ token, user }) => {
             )}
           </div>
 
-          {/* AI Insights Display */}
-          {insights && (
-            <div className="fade-up" style={{ background: `linear-gradient(135deg, ${T.surfaceAlt}, ${T.bg})`, border: `2px solid ${T.primary}40`, borderRadius: 20, padding: 24 }}>
-               <h3 style={{ color: T.primary, fontSize: 15, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>{I.zap} {t("aggregator.ai_strategy")}</h3>
-               
-               <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>{t("aggregator.post_ideas")}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {insights.post_ideas?.map((idea, i) => (
-                      <div key={i} style={{ fontSize: 13, background: `${T.primary}10`, padding: "8px 12px", borderRadius: 8, borderLeft: `3px solid ${T.primary}` }}>{idea}</div>
-                    ))}
-                  </div>
-               </div>
-
-               <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8 }}>{t("aggregator.market_trends")}</div>
-                  <ul style={{ paddingLeft: 16 }}>
-                    {insights.trend_summaries?.map((trend, i) => (
-                      <li key={i} style={{ fontSize: 13, color: T.text, marginBottom: 4 }}>{trend}</li>
-                    ))}
-                  </ul>
-               </div>
-            </div>
-          )}
+          <AIInsightsPanel insights={insights} t={t} />
         </div>
 
         {/* Feed */}
@@ -150,24 +144,13 @@ export const AggregatorView = ({ token, user }) => {
           <h2 style={{ fontSize: 17, fontWeight: 700, marginBottom: 20 }}>{t("aggregator.feed_title")}</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16 }}>
             {posts.map(post => (
-              <div key={post.id} style={{ background: T.surfaceAlt, borderRadius: 16, overflow: "hidden", border: `1px solid ${T.border}` }}>
-                {post.media_url ? (
-                  <img src={post.media_url} alt="" style={{ width: "100%", height: 180, objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: "100%", height: 180, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>📷</div>
-                )}
-                <div style={{ padding: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: T.primary }}>{post.aggregator_accounts?.instagram_username}</span>
-                    <span style={{ fontSize: 11, color: T.textMuted }}>{new Date(post.posted_at).toLocaleDateString()}</span>
-                  </div>
-                  <div style={{ fontSize: 12, height: 36, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: T.textMuted }}>{post.caption}</div>
-                  <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>{I.heart} {post.likes}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>{I.chat} {post.comments}</span>
-                  </div>
-                </div>
-              </div>
+              <AggregatedPostCard 
+                key={post.id} 
+                post={post} 
+                token={token} 
+                t={t} 
+                onSaveSuccess={() => show(t("aggregator.save_success"), "success")} 
+              />
             ))}
             {posts.length === 0 && <div style={{ gridColumn: "span 2", textAlign: "center", padding: 40, color: T.textDim }}>{t("aggregator.fetching_data")}</div>}
           </div>

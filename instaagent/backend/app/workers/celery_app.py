@@ -67,10 +67,10 @@ celery_app.conf.update(
 
     # ── Beat Schedule ─────────────────────────────────────────────────────────
     beat_schedule={
-        # Every 6 hours — sync all aggregator accounts
+        # Every 4 hours — sync all aggregator accounts
         "sync-aggregator-accounts": {
             "task":     "sync_all_aggregator_accounts",
-            "schedule": crontab(minute=0, hour="*/6"),
+            "schedule": crontab(minute=0, hour="*/4"),
         },
         # Every 60 seconds — check for scheduled posts due for publishing
         "publish-scheduled-posts": {

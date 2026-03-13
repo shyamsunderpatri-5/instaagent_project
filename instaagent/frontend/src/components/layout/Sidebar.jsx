@@ -10,6 +10,7 @@ const NAV_IDS = [
   { id: "telegram",  labelKey: "telegram",  icon: I.telegram, featureKey: "enable_telegram_bot" },
   { id: "aggregator",labelKey: "aggregator",icon: I.aggregator, featureKey: "enable_aggregator" },
   { id: "admin",     labelKey: "admin",     icon: I.globe,     adminOnly: true },
+  { id: "admin_aggregator", labelKey: "admin_aggregator", icon: I.trend, adminOnly: true },
   { id: "settings",  labelKey: "settings",  icon: I.settings },
 ];
 
