@@ -1,6 +1,6 @@
 // frontend/src/components/views/AdminView.jsx
 import { useState, useEffect } from "react";
-import { T, I, StatCard, Badge, Spinner } from "../common/UIComponents";
+import { T, I, StatCard, Badge, Spinner, useToast } from "../common/UIComponents";
 import { api } from "../common/api";
 
 export const AdminView = ({ token }) => {
@@ -8,6 +8,7 @@ export const AdminView = ({ token }) => {
   const [aggStats, setAggStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { show, Toast } = useToast();
 
   // Initial data fetch for dashboard stats and aggregator stats
   useEffect(() => {
@@ -18,10 +19,8 @@ export const AdminView = ({ token }) => {
     ]).then(([s, as]) => {
         setStats(s.stats);
         setAggStats(as);
-        // setLoading(false); // Users are fetched in a separate effect now
     }).finally(() => {
-      // If users are fetched separately, this setLoading(false) might need adjustment
-      // For now, let's assume the user fetch will handle the final setLoading(false)
+      // stats loading handled
     });
   }, [token]);
 
@@ -30,7 +29,7 @@ export const AdminView = ({ token }) => {
     setLoading(true);
     api.get("/api/v1/admin/users", token)
       .then(res => setUsers(res.users || []))
-      .catch(e => console.error(e.message)) // Assuming 'show' is a global or imported function, using console.error for now
+      .catch(e => show(e.message, "error"))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -44,22 +43,19 @@ export const AdminView = ({ token }) => {
     try {
       const endpoint = type === "ban" ? `/api/v1/admin/users/${userId}/ban` : `/api/v1/admin/users/${userId}/reset-quota`;
       await api.post(endpoint, {}, token);
-      // Assuming 'show' is a global or imported function
-      // show(`Action ${type} successful`, "success");
-      console.log(`Action ${type} successful`);
+      show(`Action successful`, "success");
 
       // Refresh list
       const res = await api.get("/api/v1/admin/users", token);
       setUsers(res.users || []);
     } catch (e) {
-      // Assuming 'show' is a global or imported function
-      // show(e.message, "error");
-      console.error(e.message);
+      show(e.message, "error");
     }
   };
 
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1000 }}>
+       {Toast}
        <div className="fade-up" style={{ marginBottom: 24 }}>
           <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>Admin Panel</h1>
           <p style={{ color: T.textMuted, fontSize: 14 }}>Platform-wide statistics and user management</p>
@@ -80,10 +76,10 @@ export const AdminView = ({ token }) => {
                 <thead>
                    <tr style={{ borderBottom: `1px solid ${T.border}`, color: T.textMuted, textAlign: "left" }}>
                       <th style={{ padding: "12px 8px" }}>Name / Email</th>
-                      <th style={{ padding: "12px 8px" }}>Status</th>
+                      <th style={{ padding: "12px 8px" }}>Plan</th>
                       <th style={{ padding: "12px 8px" }}>Joined</th>
-                      <th style={{ textAlign: "left", padding: "12px 16px", fontSize: 13 }}>Status</th>
-                      <th style={{ textAlign: "right", padding: "12px 16px", fontSize: 13 }}>Actions</th>
+                      <th style={{ padding: "12px 16px" }}>Status</th>
+                      <th style={{ textAlign: "right", padding: "12px 16px" }}>Actions</th>
                    </tr>
                 </thead>
                 <tbody>
@@ -95,6 +91,9 @@ export const AdminView = ({ token }) => {
                          </td>
                          <td style={{ padding: 16 }}>
                             <Badge status={u.plan} />
+                         </td>
+                         <td style={{ padding: 16 }}>
+                            <div style={{ color: T.textDim }}>{new Date(u.created_at).toLocaleDateString()}</div>
                          </td>
                          <td style={{ padding: 16 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: u.is_active ? T.green : T.red }}>

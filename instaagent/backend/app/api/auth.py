@@ -175,6 +175,13 @@ class ResetPasswordRequest(BaseModel):
         return v
 
 
+class OnboardRequest(BaseModel):
+    instagram_username: Optional[str] = None
+    whatsapp_phone: Optional[str] = None
+    posting_time: Optional[str] = None
+    language: Optional[str] = None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # INTERNAL UTILITIES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -528,6 +535,41 @@ async def update_profile(
     user_data = _safe_user_response(updated_user.data) if updated_user.data else {}
 
     return {"message": "Profile updated successfully.", "user": user_data}
+
+
+@router.post("/onboard", summary="Complete user onboarding setup")
+async def complete_onboarding(
+    body: OnboardRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    supabase = get_supabase()
+    
+    # Build update dict with provided fields
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    
+    # Map posting_time to preferred_post_time
+    if body.posting_time:
+        updates["preferred_post_time"] = body.posting_time
+        if "posting_time" in updates:
+            del updates["posting_time"]
+            
+    updates["onboarding_done"] = True
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    supabase.table("users").update(updates).eq("id", current_user["id"]).execute()
+    
+    updated_user = (
+        supabase.table("users")
+        .select("id, email, full_name, phone, city, language, plan, "
+                "instagram_username, is_active, created_at, telegram_id, "
+                "trial_start, trial_end, trial_used, preferred_post_time, "
+                "is_admin, whatsapp_phone, onboarding_done")
+        .eq("id", current_user["id"])
+        .single()
+        .execute()
+    )
+    
+    return {"user": updated_user.data}
 
 
 @router.post("/change-password", summary="Change password (requires current password)")

@@ -12,6 +12,7 @@ from app.db.supabase import get_supabase
 from app.middleware.auth import get_current_user
 from app.config import settings
 import logging
+from datetime import datetime
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -212,19 +213,25 @@ async def ban_user(user_id: str, admin: dict = Depends(require_admin)):
 async def reset_user_quota(user_id: str, admin: dict = Depends(require_admin)):
     """Reset the usage count for a specific user."""
     supabase = get_supabase()
+    current_month = datetime.now().strftime("%Y-%m")
     
-    # We clear the usage logs for this month for the user
-    # Or update the usage snapshot if you have one.
-    # In this project, usage is often calculated by counting posts in current month.
-    # If there's a specific usage table, we update it.
+    # 1. Clear detailed usage logs for the current month
+    supabase.table("usage_logs")\
+            .delete()\
+            .eq("user_id", user_id)\
+            .eq("month_year", current_month)\
+            .execute()
     
-    # If the user has a custom quota in the database, we leave it.
-    # Just reset the 'used' count if tracked.
-    
-    # NOTE: In this architecture, usage seems to be derived. 
-    # To 'reset' it, we might need to soft-delete or flag posts as 'reset'.
-    # Alternatively, if there is a 'monthly_usage' table:
-    # supabase.table("monthly_usage").update({"posts_used": 0}).eq("user_id", user_id).execute()
-    
-    log.info("Admin %s reset quota for user %s", admin["email"], user_id)
-    return {"success": True, "message": "User usage quota reset instructions received. (Note: Implementation depends on usage tracking logic)"}
+    # 2. Reset the summary count in monthly_usage table if it exists
+    # We use a try/except or just execute assuming it might be there
+    try:
+        supabase.table("monthly_usage")\
+                .update({"posts_used": 0})\
+                .eq("user_id", user_id)\
+                .eq("month_year", current_month)\
+                .execute()
+    except Exception as e:
+        log.warning("Could not update monthly_usage for %s: %s", user_id, e)
+
+    log.info("Admin %s reset quota for user %s for %s", admin["email"], user_id, current_month)
+    return {"success": True, "message": f"Usage quota reset for {current_month}."}
