@@ -146,7 +146,7 @@ class AggregatorService:
 
         # 2. Fetch recent posts from these accounts in a single query (Fix N+1)
         resp = supabase.table("aggregated_posts")\
-            .select("caption, likes, comments, hashtags, posted_at")\
+            .select("caption, likes, comments, hashtags, posted_at, media_type, engagement_rate")\
             .in_("aggregator_account_id", [str(aid) for aid in valid_ids])\
             .order("posted_at", desc=True)\
             .limit(30)\
