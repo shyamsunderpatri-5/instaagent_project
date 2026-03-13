@@ -78,22 +78,18 @@ async def delete_account(
 async def get_posts(
     account_ids: Optional[List[UUID]] = Query(None),
     limit: int = Query(default=50, le=200, ge=1),
-    sort: str = Query("recent", pattern="^(recent|top)$"),
+    sort: str = Query(default="recent"),
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
     query = supabase.table("aggregated_posts").select("*").eq("user_id", str(current_user["id"]))
-    
     if account_ids:
         query = query.in_("aggregator_account_id", [str(aid) for aid in account_ids])
-    
     if sort == "top":
-        query = query.order("engagement_rate", desc=True).order("posted_at", desc=True)
+        query = query.order("engagement_rate", desc=True)
     else:
         query = query.order("posted_at", desc=True)
-    
     query = query.limit(limit)
-    
     resp = query.execute()
     return resp.data or []
 
