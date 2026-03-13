@@ -8,7 +8,9 @@ from app.middleware.plan_check import check_aggregator_plan
 from app.db.supabase import get_supabase
 from app.models.aggregator import (
     AggregatorAccount, AggregatorAccountCreate, 
-    AggregatedPost, AIInsightRequest, AIInsightResponse
+    AggregatedPost, AIInsightRequest, AIInsightResponse,
+    ContentFormatResponse, FrequencyResponse, ComparisonResponse, 
+    HashtagResponse, AlertSettingsUpdate
 )
 from app.services.aggregator_service import aggregator_service
 from app.workers.aggregator_worker import sync_aggregator_posts
@@ -76,6 +78,7 @@ async def delete_account(
 async def get_posts(
     account_ids: Optional[List[UUID]] = Query(None),
     limit: int = Query(default=50, le=200, ge=1),
+    sort: str = Query("recent", pattern="^(recent|top)$"),
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
@@ -84,7 +87,12 @@ async def get_posts(
     if account_ids:
         query = query.in_("aggregator_account_id", [str(aid) for aid in account_ids])
     
-    query = query.order("posted_at", desc=True).limit(limit)
+    if sort == "top":
+        query = query.order("engagement_rate", desc=True).order("posted_at", desc=True)
+    else:
+        query = query.order("posted_at", desc=True)
+    
+    query = query.limit(limit)
     
     resp = query.execute()
     return resp.data or []
@@ -135,6 +143,41 @@ async def save_aggregated_post(
     if "error" in res:
         raise HTTPException(status_code=404, detail=res["error"])
     return res
+
+@router.patch("/accounts/{account_id}/alerts")
+async def update_alert_settings(
+    account_id: UUID, 
+    settings: AlertSettingsUpdate,
+    current_user: dict = Depends(check_aggregator_plan)
+):
+    supabase = get_supabase()
+    resp = supabase.table("aggregator_accounts") \
+        .update(settings.dict()) \
+        .eq("id", str(account_id)) \
+        .eq("user_id", current_user["id"]) \
+        .execute()
+    
+    if not resp.data:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return resp.data[0]
+
+@router.get("/analytics/content-formats", response_model=ContentFormatResponse)
+async def get_content_formats(current_user: dict = Depends(check_aggregator_plan)):
+    stats = await aggregator_service.get_content_format_stats(current_user["id"])
+    return {"formats": stats}
+
+@router.get("/analytics/frequency", response_model=FrequencyResponse)
+async def get_frequency(current_user: dict = Depends(check_aggregator_plan)):
+    return await aggregator_service.get_posting_frequency(current_user["id"])
+
+@router.get("/analytics/comparison", response_model=ComparisonResponse)
+async def get_comparison(current_user: dict = Depends(check_aggregator_plan)):
+    return await aggregator_service.get_comparison_stats(current_user["id"])
+
+@router.get("/analytics/hashtags", response_model=HashtagResponse)
+async def get_hashtags(current_user: dict = Depends(check_aggregator_plan)):
+    stats = await aggregator_service.get_user_hashtag_performance(current_user["id"])
+    return {"hashtags": stats}
 
 # ── Admin Endpoints ──────────────────────────────────────────────────────────
 

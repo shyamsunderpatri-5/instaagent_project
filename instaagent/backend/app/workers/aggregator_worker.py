@@ -3,6 +3,7 @@ import asyncio
 import logging
 from app.workers.celery_app import celery_app
 from app.services.aggregator_service import aggregator_service
+from app.services.telegram_service import send_message
 from app.db.supabase import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -18,8 +19,69 @@ def sync_aggregator_posts(aggregator_account_id: str):
     """Celery task to sync posts for a specific account with automatic retries."""
     logger.info("Syncing aggregator posts for account %s", aggregator_account_id)
     
-    # Run async logic in sync context
-    return asyncio.run(aggregator_service.fetch_and_save_posts(aggregator_account_id))
+    # 1. Run sync
+    loop = asyncio.get_event_loop()
+    new_posts_count = loop.run_until_complete(aggregator_service.fetch_and_save_posts(aggregator_account_id))
+    
+    # 2. Check for alerts
+    if new_posts_count > 0:
+        loop.run_until_complete(_maybe_alert_user(aggregator_account_id))
+    
+    return new_posts_count
+
+async def _maybe_alert_user(account_id: str):
+    """Check for high-engagement posts and send Telegram alert."""
+    supabase = get_supabase()
+    
+    # 1. Get account and user info
+    resp = supabase.table("aggregator_accounts") \
+        .select("*, users(telegram_id, language)") \
+        .eq("id", account_id) \
+        .single() \
+        .execute()
+    
+    if not resp.data: return
+    acc = resp.data
+    user = acc.get("users")
+    
+    if not acc.get("alert_enabled") or not user or not user.get("telegram_id"):
+        return
+
+    # 2. Find high engagement posts from this account in the last sync (or last hour)
+    # We look for posts where engagement_rate > threshold and it's from a competitor
+    if acc["account_type"] != "competitor":
+        return
+
+    threshold = acc.get("alert_threshold_er", 3.0)
+    
+    posts_resp = supabase.table("aggregated_posts") \
+        .select("ig_post_id, caption, engagement_rate, media_url") \
+        .eq("aggregator_account_id", account_id) \
+        .gt("engagement_rate", threshold) \
+        .order("posted_at", desc=True) \
+        .limit(1) \
+        .execute()
+    
+    if not posts_resp.data:
+        return
+    
+    post = posts_resp.data[0]
+    
+    # Minimalist notification text
+    lang = user.get("language", "en")
+    username = acc["instagram_username"]
+    er = post["engagement_rate"]
+    
+    if lang == "hi":
+        msg = f"🚀 *धमाकेदार पोस्ट अलर्ट!*\n\nकंपटीटर *@{username}* की एक पोस्ट पर {er}% एंगेजमेंट मिला है!\n\nये रहा कैप्शन:\n_{post['caption'][:100]}..._\n\nजाकर देखें और सीखें!"
+    else:
+        msg = f"🚀 *Trending Competitor Alert!*\n\n*@{username}* just posted a high-impact post with {er}% engagement!\n\nCaption excerpt:\n_{post['caption'][:100]}..._\n\nCheck it out for inspiration!"
+
+    try:
+        await send_message(user["telegram_id"], msg)
+        logger.info("Sent alert for account %s to user %s", username, user["telegram_id"])
+    except Exception as e:
+        logger.error("Failed to send telegram alert: %s", str(e))
 
 @celery_app.task(name="sync_all_aggregator_accounts")
 def sync_all_aggregator_accounts():

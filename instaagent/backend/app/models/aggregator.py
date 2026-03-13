@@ -15,6 +15,10 @@ class AggregatorAccount(AggregatorAccountBase):
     id: UUID
     last_synced_at: Optional[datetime] = None
     sync_error: Optional[str] = None
+    followers_count: int = 0
+    following_count: int = 0
+    alert_enabled: bool = False
+    alert_threshold_er: float = 3.0
     created_at: datetime
     updated_at: datetime
 
@@ -28,6 +32,7 @@ class AggregatedPostBase(BaseModel):
     media_type: Optional[str] = None
     likes: int = 0
     comments: int = 0
+    engagement_rate: float = 0.0
     hashtags: List[str] = []
     posted_at: datetime
 
@@ -47,4 +52,48 @@ class AIInsightResponse(BaseModel):
     trend_summaries: List[str]
     best_posting_times: List[str]
     caption_suggestions: List[str]
+    content_sentiment: Optional[str] = None
+    top_format: Optional[str] = None
+    weak_spots: List[str] = []
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ContentFormatStats(BaseModel):
+    media_type: str
+    avg_engagement: float
+    post_count: int
+
+class ContentFormatResponse(BaseModel):
+    formats: List[ContentFormatStats]
+
+class FrequencyStats(BaseModel):
+    day: str
+    owned_count: int
+    competitor_avg_count: int
+
+class FrequencyResponse(BaseModel):
+    heatmap: List[FrequencyStats]
+    avg_per_week_owned: float
+    avg_per_week_competitor: float
+
+class AccountComparisonStats(BaseModel):
+    username: str
+    followers: int
+    avg_engagement: float
+    posts_per_week: int
+    top_hashtags: List[str]
+
+class ComparisonResponse(BaseModel):
+    owned: AccountComparisonStats
+    competitors: List[AccountComparisonStats]
+
+class HashtagStats(BaseModel):
+    tag: str
+    avg_engagement: float
+    count: int
+
+class HashtagResponse(BaseModel):
+    hashtags: List[HashtagStats]
+
+class AlertSettingsUpdate(BaseModel):
+    alert_enabled: bool
+    alert_threshold_er: float

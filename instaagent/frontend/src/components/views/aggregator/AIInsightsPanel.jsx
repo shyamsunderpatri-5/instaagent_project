@@ -5,75 +5,68 @@ import { T, I } from "../../common/UIComponents";
 export const AIInsightsPanel = ({ insights, t }) => {
   if (!insights) return null;
 
+  const renderList = (title, items, icon, color = T.primary) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 12, textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ color }}>{icon}</span> {title}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ 
+              fontSize: 13, 
+              background: `${color}08`, 
+              padding: "10px 14px", 
+              borderRadius: 10, 
+              borderLeft: `3px solid ${color}`,
+              color: T.text
+            }}>{item}</div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fade-up" style={{ 
       background: `linear-gradient(135deg, ${T.surfaceAlt}, ${T.bg})`, 
-      border: `2px solid ${T.primary}40`, 
-      borderRadius: 20, 
+      border: `2px solid ${T.primary}20`, 
+      borderRadius: 24, 
       padding: 24,
       marginBottom: 24
     }}>
-       <h3 style={{ color: T.primary, fontSize: 15, fontWeight: 800, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-         {I.zap} {t("aggregator.ai_strategy")}
-       </h3>
-       
-       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          <div>
-             <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8, textTransform: "uppercase" }}>
-               {t("aggregator.post_ideas")}
-             </div>
-             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-               {insights.post_ideas?.map((idea, i) => (
-                 <div key={i} style={{ 
-                   fontSize: 13, 
-                   background: `${T.primary}10`, 
-                   padding: "8px 12px", 
-                   borderRadius: 8, 
-                   borderLeft: `3px solid ${T.primary}` 
-                 }}>{idea}</div>
-               ))}
-             </div>
-          </div>
+      <h3 style={{ color: T.primary, fontSize: 15, fontWeight: 800, marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+        {I.zap} {t("aggregator.ai_strategy")}
+      </h3>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-             <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8, textTransform: "uppercase" }}>
-                  {t("aggregator.market_trends")}
-                </div>
-                <ul style={{ paddingLeft: 16, margin: 0 }}>
-                  {insights.trend_summaries?.map((trend, i) => (
-                    <li key={i} style={{ fontSize: 13, color: T.text, marginBottom: 4 }}>{trend}</li>
-                  ))}
-                </ul>
-             </div>
+      {/* Enhanced Metrics */}
+      {(insights.content_sentiment || insights.top_format) && (
+        <div style={{ marginBottom: 24, padding: "16px", background: T.surface, borderRadius: 16, border: `1px solid ${T.border}` }}>
+          {insights.content_sentiment && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{t("aggregator.content_sentiment")}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.primary }}>{insights.content_sentiment}</div>
+            </div>
+          )}
+          {insights.top_format && (
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{t("aggregator.top_format_ai")}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{insights.top_format}</div>
+            </div>
+          )}
+        </div>
+      )}
 
-             <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 8, textTransform: "uppercase" }}>
-                  {t("aggregator.best_posting_times")}
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {insights.best_posting_times?.map((time, i) => (
-                    <span key={i} style={{ fontSize: 11, background: T.surface, border: `1px solid ${T.border}`, padding: "4px 8px", borderRadius: 6 }}>{time}</span>
-                  ))}
-                </div>
-             </div>
-          </div>
-       </div>
+      {renderList(t("aggregator.post_ideas"), insights.post_ideas, I.zap)}
+      {renderList(t("aggregator.trend_summaries"), insights.trend_summaries, I.analytics)}
+      {renderList(t("aggregator.posting_times"), insights.best_posting_times, I.clock)}
+      {renderList(t("aggregator.caption_suggestions"), insights.caption_suggestions, I.create)}
+      {renderList(t("aggregator.weak_spots"), insights.weak_spots, I.warning, T.red)}
 
-       {insights.caption_suggestions && (
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px dashed ${T.border}` }}>
-             <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 12, textTransform: "uppercase" }}>
-               {t("aggregator.caption_suggestions")}
-             </div>
-             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                {insights.caption_suggestions.map((hook, i) => (
-                   <div key={i} style={{ fontSize: 12, fontStyle: "italic", color: T.textDim, background: T.surfaceAlt, padding: 12, borderRadius: 12 }}>
-                      "{hook}"
-                   </div>
-                ))}
-             </div>
-          </div>
-       )}
+      <div style={{ fontSize: 10, color: T.textDim, textAlign: "center", marginTop: 12, fontStyle: "italic" }}>
+        {t("aggregator.ai_footer")}
+      </div>
     </div>
   );
 };
