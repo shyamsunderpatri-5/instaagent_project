@@ -1084,11 +1084,6 @@ export const TRANSLATIONS = {
   },
 };
 
-export function makeLangValue(lang, setLang) {
-  const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS["en"][key] || key;
-  return { lang, t, setLang };
-}
-
 // ── FEATURE FLAG CONTEXT ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export const FeatureCtx = createContext({ features: {}, trialPosts: 5, botUsername: "InstaAgent_bot" });
 export const useFeatures = () => useContext(FeatureCtx);

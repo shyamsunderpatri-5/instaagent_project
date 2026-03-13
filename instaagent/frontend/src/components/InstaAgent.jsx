@@ -55,14 +55,16 @@ export function InstaAgent() {
         if (msg === "timeout") {
             show("Connection timed out. Check your backend.", "error");
         } else {
-            show("Session expired. Please sign in again.", "error");
+            show(err.message || "Session expired. Please sign in again.", "error");
             setToken(null);
             setUser(null);
             localStorage.removeItem("ia_token");
+            return false;
         }
     } finally {
         setLoading(false);
     }
+    return true; // Indicate success
   }, [show]);
 
   useEffect(() => {
@@ -97,8 +99,10 @@ export function InstaAgent() {
         const tk = res.token || res.access_token;
         setToken(tk);
         localStorage.setItem("ia_token", tk);
-        await fetchBase(tk);
-        show(authForm.isLogin ? "Welcome back!" : "Account created!");
+        const success = await fetchBase(tk);
+        if (success) {
+            show(authForm.isLogin ? "Welcome back!" : "Account created!");
+        }
     } catch (err) {
         show(err.message, "error");
     } finally {
