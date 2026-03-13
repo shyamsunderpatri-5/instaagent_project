@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     WHATSAPP_TOKEN: str = ""                    # Permanent system user token from Meta
     WHATSAPP_PHONE_ID: str = ""                  # Business phone number ID from Meta
     WHATSAPP_APP_SECRET: str = ""               # App secret for HMAC-SHA256 webhook verification
-    WHATSAPP_VERIFY_TOKEN: str = "instaagent_wa_verify_2024"  # Custom token for webhook setup
+    WHATSAPP_VERIFY_TOKEN: str = ""             # Custom token for webhook setup
     WHATSAPP_RATE_LIMIT_PHOTOS: int = 5         # Max photos per phone per hour
 
     # ── Razorpay Payments ─────────────────────────────────────────────────────
@@ -75,7 +75,8 @@ class Settings(BaseSettings):
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_HOURS: int = 72
-    ENCRYPTION_KEY: Optional[str] = "lN7oiJz7vk1-oXZIXT6F0Ojy3TirZXuYM21UdCy_HaY="
+    # REQUIRED: Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    ENCRYPTION_KEY: str
 
     # ── Application ───────────────────────────────────────────────────────────
     ENVIRONMENT: str = "development"

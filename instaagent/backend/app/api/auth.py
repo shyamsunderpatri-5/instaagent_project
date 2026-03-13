@@ -122,7 +122,6 @@ class UpdateProfileRequest(BaseModel):
     telegram_id: Optional[int] = None
     preferred_post_time: Optional[str] = None
     whatsapp_phone: Optional[str] = None   # Used by WA bot to identify the seller
-    is_admin: Optional[bool] = None # Admin only
 
 
 

@@ -46,6 +46,10 @@ class PromoteRequest(BaseModel):
     email: str
 
 
+class SetAdminRequest(BaseModel):
+    is_admin: bool
+
+
 @router.post("/promote", summary="Bootstrap: promote a user to admin (requires X-Admin-Secret header)")
 async def promote_to_admin(
     body: PromoteRequest,
@@ -235,3 +239,28 @@ async def reset_user_quota(user_id: str, admin: dict = Depends(require_admin)):
 
     log.info("Admin %s reset quota for user %s for %s", admin["email"], user_id, current_month)
     return {"success": True, "message": f"Usage quota reset for {current_month}."}
+
+
+@router.post("/users/{user_id}/set-admin", summary="Grant/Revoke admin role")
+async def set_admin(
+    user_id: str,
+    body: SetAdminRequest,
+    admin: dict = Depends(require_admin),
+):
+    """Update is_admin status for a user."""
+    supabase = get_supabase()
+    
+    # Check if target is user
+    target = supabase.table("users").select("id, email").eq("id", user_id).single().execute()
+    if not target.data:
+        raise HTTPException(404, "User not found")
+        
+    if user_id == admin["id"] and not body.is_admin:
+        raise HTTPException(400, "You cannot remove your own admin access.")
+        
+    supabase.table("users").update({"is_admin": body.is_admin}).eq("id", user_id).execute()
+    
+    status = "promoted" if body.is_admin else "demoted"
+    log.info("Admin %s %s user %s", admin["email"], status, user_id)
+    
+    return {"success": True, "message": f"User {status} successfully."}
