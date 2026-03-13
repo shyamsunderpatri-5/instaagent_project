@@ -67,7 +67,6 @@ async def delete_account(
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
-    # RLS should handle security, but we'll be explicit
     resp = supabase.table("aggregator_accounts").delete().eq("id", str(account_id)).eq("user_id", current_user["id"]).execute()
     if not resp.data:
         raise HTTPException(status_code=404, detail="Account not found or access denied")
@@ -80,7 +79,6 @@ async def get_posts(
     current_user: dict = Depends(check_aggregator_plan)
 ):
     supabase = get_supabase()
-    # High: Optimized to use direct user_id column on aggregated_posts (no join needed)
     query = supabase.table("aggregated_posts").select("*").eq("user_id", str(current_user["id"]))
     
     if account_ids:
@@ -97,7 +95,6 @@ async def get_insights(
     req: AIInsightRequest, 
     current_user: dict = Depends(check_aggregator_plan)
 ):
-    # Critical: Enforce AI insight rate limit (Redis-backed cooldown)
     redis_client = get_redis()
     user_id = str(current_user["id"])
     rate_key = f"aggregator_insights_cooldown:{user_id}"
@@ -109,7 +106,6 @@ async def get_insights(
             detail=f"Please wait {ttl} seconds before generating insights again."
         )
     
-    # Set cooldown
     redis_client.setex(rate_key, INSIGHTS_COOLDOWN_SECONDS, "1")
     
     insights = await aggregator_service.generate_ai_insights(req.account_ids, user_id=user_id)
@@ -117,14 +113,11 @@ async def get_insights(
         raise HTTPException(status_code=404, detail=insights["error"])
     return insights
 
-# ── Admin Endpoints ──────────────────────────────────────────────────────────
-
 @router.post("/refresh/{account_id}")
 async def refresh_account(
     account_id: UUID, 
     current_user: dict = Depends(check_aggregator_plan)
 ):
-    # Verify account belongs to user (RLS handles this but explicit check is safer for background tasks)
     supabase = get_supabase()
     resp = supabase.table("aggregator_accounts").select("id").eq("id", str(account_id)).eq("user_id", current_user["id"]).execute()
     if not resp.data:
@@ -160,12 +153,11 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         .eq("is_active", True) \
         .execute()
     
-    # Get user list with aggregator account counts
     users_with_accounts = supabase.rpc("get_aggregator_user_stats").execute()
     
     return {
-        "total_tracked_accounts": acc_count,
-        "total_aggregated_posts": post_count,
+        "total_tracked_accounts": acc_count or 0,
+        "total_aggregated_posts": post_count or 0,
         "active_users": active_users_resp.count or 0,
         "user_details": users_with_accounts.data or []
     }
@@ -188,8 +180,6 @@ async def moderate_post(
         raise HTTPException(status_code=403, detail="Admin access required")
     
     supabase = get_supabase()
-    # Admins can update any post (e.g., hidden=true)
-    # Note: If 'hidden' column is missing, run: ALTER TABLE aggregated_posts ADD COLUMN hidden BOOLEAN DEFAULT FALSE;
     resp = supabase.table("aggregated_posts").update(update_data).eq("id", str(post_id)).execute()
     return {"updated": True, "post": resp.data[0] if resp.data else None}
 
