@@ -152,19 +152,20 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   const postReady = postData?.status === "ready" || !!(postData?.edited_photo_url);
 
   const CATEGORIES = [
-  "🛍️ Product Showcase",
-  "💡 Tips & Tutorials",
-  "🏢 Behind the Scenes",
-  "🤝 Customer Review",
-  "📢 Major Announcement",
-  "🎨 Design Inspo",
-  "📈 Growth Update",
-  "💼 Professional Service",
-  "🏪 Local Business",
-  "🥗 Health & Wellness",
-  "👗 Fashion & Style",
-  "🍔 Food & Dining",
-  "✈️ Travel & Stay",
+  { value: "jewellery",   label: "💍 Jewellery" },
+  { value: "clothing",    label: "👗 Clothing & Fashion" },
+  { value: "food",        label: "🍛 Food & Restaurant" },
+  { value: "electronics", label: "📱 Electronics" },
+  { value: "handmade",    label: "🎨 Handmade & Craft" },
+  { value: "furniture",   label: "🏠 Furniture & Home Decor" },
+  { value: "cosmetics",   label: "💄 Beauty & Skincare" },
+  { value: "grocery",     label: "🛒 Grocery & Kirana" },
+  { value: "fitness",     label: "💪 Fitness & Wellness" },
+  { value: "education",   label: "📚 Education & Courses" },
+  { value: "real_estate", label: "🏗️ Real Estate" },
+  { value: "travel",      label: "✈️ Travel & Tours" },
+  { value: "automobile",  label: "🚗 Automobile" },
+  { value: "other",       label: "🏪 Other Business" },
 ];
 
   return (
@@ -218,7 +219,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
           <input value={product} onChange={e => setProduct(e.target.value)} placeholder="Product Name (e.g. Gold Bangles, Cotton Suit)" style={{ ...inputStyle, marginBottom: 12 }} />
 
           <select value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+            {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
 
           <textarea value={info} onChange={e => setInfo(e.target.value)} placeholder="Extra info: price, festival, material, offer... (optional)" rows={2} style={{ ...inputStyle, marginBottom: 14, resize: "vertical" }} />
