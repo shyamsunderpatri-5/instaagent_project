@@ -134,17 +134,37 @@ export const Toggle = ({ value, onChange }) => (
 );
 
 export function useToast() {
-  const [toast, setToast] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  
   const show = useCallback((msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3200);
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev.slice(-2), { id, msg, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3200);
   }, []);
-  const Toast = toast ? (
-    <div style={{ position: "fixed", bottom: 28, right: 28, background: toast.type === "success" ? T.green : T.red, color: "white", padding: "12px 20px", borderRadius: 12, boxShadow: "0 4px 16px rgba(0,0,0,.2)", zIndex: 1000, display: "flex", alignItems: "center", gap: 10 }}>
-      {toast.type === "success" ? I.check : I.alert}
-      <span>{toast.msg}</span>
+
+  const Toast = (
+    <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 1000, display: "flex", flexDirection: "column", gap: 8 }}>
+      {toasts.map(toast => (
+        <div key={toast.id} className="fade-up" style={{ 
+          background: toast.type === "success" ? T.green : T.red, 
+          color: "white", 
+          padding: "12px 20px", 
+          borderRadius: 12, 
+          boxShadow: "0 4px 16px rgba(0,0,0,.2)", 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 10 
+        }}>
+          {toast.type === "success" ? I.check : I.alert}
+          <span>{toast.msg}</span>
+          <div onClick={() => setToasts(p => p.filter(t => t.id !== toast.id))} style={{ marginLeft: 10, cursor: "pointer", opacity: 0.7 }}>✕</div>
+        </div>
+      ))}
     </div>
-  ) : null;
+  );
+  
   return { Toast, show };
 }
 

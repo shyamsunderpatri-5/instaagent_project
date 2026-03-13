@@ -228,7 +228,7 @@ def _safe_user_response(user: dict) -> dict:
             "id", "email", "full_name", "phone", "city", "language",
             "plan", "instagram_username", "is_active", "created_at",
             "telegram_id", "trial_start", "trial_end", "trial_used",
-            "preferred_post_time", "is_admin", "whatsapp_phone",
+            "preferred_post_time", "is_admin", "whatsapp_phone", "onboarding_done",
 
         )
     }

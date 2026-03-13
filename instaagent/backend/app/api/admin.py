@@ -226,17 +226,6 @@ async def reset_user_quota(user_id: str, admin: dict = Depends(require_admin)):
             .eq("month_year", current_month)\
             .execute()
     
-    # 2. Reset the summary count in monthly_usage table if it exists
-    # We use a try/except or just execute assuming it might be there
-    try:
-        supabase.table("monthly_usage")\
-                .update({"posts_used": 0})\
-                .eq("user_id", user_id)\
-                .eq("month_year", current_month)\
-                .execute()
-    except Exception as e:
-        log.warning("Could not update monthly_usage for %s: %s", user_id, e)
-
     log.info("Admin %s reset quota for user %s for %s", admin["email"], user_id, current_month)
     return {"success": True, "message": f"Usage quota reset for {current_month}."}
 

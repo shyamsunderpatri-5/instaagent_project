@@ -16,6 +16,7 @@ import { AggregatorView } from "./views/AggregatorView";
 import { AdminAggregatorView } from "./views/AdminAggregatorView";
 
 import { OnboardingView } from "./views/OnboardingView";
+import ErrorBoundary from "./common/ErrorBoundary";
 
 export function InstaAgent() {
   const [view,    setView]    = useState("dashboard");
@@ -24,7 +25,7 @@ export function InstaAgent() {
   const [features,setFeatures]= useState({});
   const [token,   setToken]   = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authForm,setAuthForm]= useState({ email: "", password: "", isLogin: true });
+  const [authForm,setAuthForm]= useState({ email: "", password: "", full_name: "", isLogin: true });
   // Language state — initialized from localStorage or user profile
   const [lang, setLangState] = useState(() => (
     typeof window !== "undefined" ? (localStorage.getItem("ia_lang") || "hi") : "hi"
@@ -33,7 +34,7 @@ export function InstaAgent() {
   const langValue = makeLangValue(lang, setLang);
   const { show, Toast } = useToast();
 
-  const needsOnboarding = user && (!user.instagram_username || !user.whatsapp_phone);
+  const needsOnboarding = user && !user.onboarding_done;
 
 
   const fetchBase = useCallback(async (tk) => {
@@ -90,10 +91,15 @@ export function InstaAgent() {
     e.preventDefault();
     setLoading(true);
     try {
+        if (!authForm.isLogin && !authForm.full_name.trim()) {
+            show("Please enter your name", "error");
+            return;
+        }
+
         const path = authForm.isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register";
         const body = authForm.isLogin 
             ? { email: authForm.email, password: authForm.password } 
-            : { email: authForm.email, password: authForm.password, full_name: "New Seller" };
+            : { email: authForm.email, password: authForm.password, full_name: authForm.full_name };
         
         const res = await api.post(path, body);
         const tk = res.token || res.access_token;
@@ -138,12 +144,18 @@ export function InstaAgent() {
            <h2 style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8, textAlign: "center" }}>{authForm.isLogin ? "Seller Login" : "Join InstaAgent"}</h2>
            <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 24, textAlign: "center" }}>Enterprise-grade Instagram Automation</p>
 
-           <form onSubmit={handleAuth}>
-              <div style={{ marginBottom: 16 }}>
+           <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {!authForm.isLogin && (
+                <div>
+                   <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Full Name</label>
+                   <input type="text" required value={authForm.full_name} onChange={e => setAuthForm({...authForm, full_name: e.target.value})} placeholder="Your Name" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
+                </div>
+              )}
+              <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Email Address</label>
                 <input type="email" required value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} placeholder="seller@example.com" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
               </div>
-              <div style={{ marginBottom: 24 }}>
+              <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Password</label>
                 <input type="password" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} placeholder="••••••••" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
               </div>
@@ -200,6 +212,7 @@ export function InstaAgent() {
 
   // Dashboard Context Provider and Layout
   return (
+    <ErrorBoundary>
     <LangCtx.Provider value={langValue}>
     <FeatureCtx.Provider value={{ features: features.features || {}, trialPosts: features.free_trial_posts || 5, botUsername: features.telegram_bot_username || "InstaAgent_bot" }}>
         <GlobalStyles />
@@ -212,7 +225,7 @@ export function InstaAgent() {
                     {view === "dashboard" && <DashboardView setActive={setView} user={user} usage={usage} token={token} />}
                     {view === "create"    && <CreatePostView user={user} token={token} onPostCreated={() => { fetchBase(token); setView("posts"); }} />}
                     {view === "posts"     && <PostsView token={token} />}
-                    {view === "analytics" && <AnalyticsView token={token} />}
+                    {view === "analytics" && <AnalyticsView token={token} setActive={setView} />}
                     {view === "billing"   && <BillingView user={user} usage={usage} token={token} />}
                     {view === "admin"     && <AdminView token={token} user={user} />}
                     {view === "admin_aggregator" && <AdminAggregatorView token={token} />}
@@ -225,6 +238,7 @@ export function InstaAgent() {
         {Toast}
     </FeatureCtx.Provider>
     </LangCtx.Provider>
+    </ErrorBoundary>
   );
 }
 

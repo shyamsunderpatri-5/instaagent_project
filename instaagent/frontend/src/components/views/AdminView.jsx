@@ -8,6 +8,7 @@ export const AdminView = ({ token }) => {
   const [aggStats, setAggStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [confirmModal, setConfirmModal] = useState(null);
   const { show, Toast } = useToast();
 
   // Initial data fetch for dashboard stats and aggregator stats
@@ -34,11 +35,18 @@ export const AdminView = ({ token }) => {
   }, [token]);
 
   const handleAction = async (userId, type) => {
-    const confirmMsg = type === "ban"
-      ? "Are you sure you want to change this user's access status?"
-      : "Reset this user's monthly usage quota?";
+    setConfirmModal({
+        type, 
+        userId, 
+        msg: type === "ban" ? "Are you sure you want to change this user's access status?" : "Reset this user's monthly usage quota?"
+    });
+  };
 
-    if (!window.confirm(confirmMsg)) return;
+  const executeAction = async () => {
+    if (!confirmModal) return;
+    const { userId, type } = confirmModal;
+    setConfirmModal(null);
+    setLoading(true);
 
     try {
       const endpoint = type === "ban" ? `/api/v1/admin/users/${userId}/ban` : `/api/v1/admin/users/${userId}/reset-quota`;
@@ -50,6 +58,8 @@ export const AdminView = ({ token }) => {
       setUsers(res.users || []);
     } catch (e) {
       show(e.message, "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,6 +135,20 @@ export const AdminView = ({ token }) => {
              </table>
           </div>
        </div>
+ 
+       {confirmModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+             <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 32, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,.4)", textAlign: "center" }}>
+                <div style={{ width: 48, height: 48, background: T.primaryDim, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", color: T.primary }}>{I.alert}</div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: T.text, marginBottom: 8 }}>Are you sure?</h3>
+                <p style={{ fontSize: 14, color: T.textMuted, marginBottom: 24, lineHeight: 1.5 }}>{confirmModal.msg}</p>
+                <div style={{ display: "flex", gap: 12 }}>
+                   <button onClick={() => setConfirmModal(null)} style={{ flex: 1, padding: 12, borderRadius: 12, border: `1px solid ${T.border}`, background: "transparent", color: T.text, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+                   <button onClick={executeAction} style={{ flex: 1, padding: 12, borderRadius: 12, background: T.primary, color: "white", border: "none", fontWeight: 600, cursor: "pointer" }}>Confirm</button>
+                </div>
+             </div>
+          </div>
+       )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-// frontend/src/components/layout/Sidebar.jsx
+import { useState, useEffect } from "react";
 import { T, I, Badge, useFeatures, useLang } from "../common/UIComponents";
 
 const NAV_IDS = [
@@ -18,6 +18,15 @@ const NAV_IDS = [
 export const Sidebar = ({ active, setActive, user, usage, onLogout, loading }) => {
   const { features } = useFeatures();
   const { t } = useLang();
+  const [open, setOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const name     = user?.full_name || "Seller";
   const initials = name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
   const plan     = user?.plan || "free";
@@ -30,9 +39,40 @@ export const Sidebar = ({ active, setActive, user, usage, onLogout, loading }) =
     return !n.featureKey || features[n.featureKey] !== false;
   });
 
+  const sidebarStyle = {
+    width: 240, 
+    minWidth: 240, 
+    background: T.surface, 
+    borderRight: `1px solid ${T.border}`, 
+    display: "flex", 
+    flexDirection: "column", 
+    height: "100vh", 
+    position: isMobile ? "fixed" : "sticky",
+    left: isMobile ? (open ? 0 : -260) : 0,
+    top: 0, 
+    zIndex: 100,
+    transition: "left 0.25s cubic-bezier(0.4, 0, 0.2, 1)"
+  };
 
   return (
-    <aside style={{ width: 240, minWidth: 240, background: T.surface, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", height: "100vh", position: "sticky", top: 0, zIndex: 10 }}>
+    <>
+      {isMobile && open && (
+        <div 
+          onClick={() => setOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 90, backdropFilter: "blur(2px)" }} 
+        />
+      )}
+      
+      {isMobile && !open && (
+        <button 
+          onClick={() => setOpen(true)}
+          style={{ position: "fixed", top: 16, left: 16, zIndex: 80, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 8, padding: 8, color: T.text, cursor: "pointer" }}
+        >
+          {I.dash}
+        </button>
+      )}
+
+      <aside style={sidebarStyle} onClick={() => isMobile && setOpen(false)}>
       {/* Brand Header */}
       <div style={{ padding: "28px 20px 24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -97,5 +137,6 @@ export const Sidebar = ({ active, setActive, user, usage, onLogout, loading }) =
 
       </div>
     </aside>
+    </>
   );
 };

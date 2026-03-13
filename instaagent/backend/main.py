@@ -144,6 +144,8 @@ def _validate_startup_config() -> None:
 # FastAPI Application
 # ═══════════════════════════════════════════════════════════════════════════════
 
+IS_PROD = os.getenv("ENVIRONMENT", "development") == "production"
+
 app = FastAPI(
     title="InstaAgent API",
     description=(
@@ -151,9 +153,9 @@ app = FastAPI(
         "Handles product photo enhancement, AI caption generation, and Instagram posting."
     ),
     version="2.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url=None if IS_PROD else "/docs",
+    redoc_url=None if IS_PROD else "/redoc",
+    openapi_url=None if IS_PROD else "/openapi.json",
     lifespan=lifespan,
     swagger_ui_parameters={
         "persistAuthorization": True,
@@ -207,7 +209,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Accept"],
     expose_headers=["X-Request-ID", "X-RateLimit-Remaining", "Retry-After"],
 )
 

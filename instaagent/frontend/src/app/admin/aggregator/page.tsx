@@ -9,29 +9,26 @@ import { RefreshCw, TrendingUp, Users, FileText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import AggregatedPostCard from '@/components/aggregator/AggregatedPostCard';
 
+import { api } from "../../../components/common/api";
+
 export default function AdminAggregatorPage() {
   const [stats, setStats] = useState(null);
   const [trends, setTrends] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem('token');
-  const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-    headers: { Authorization: `Bearer ${token}` }
-  });
-
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('ia_token') || localStorage.getItem('token');
       const [s, t, p] = await Promise.all([
-        api.get('/api/v1/aggregator/admin/stats'),
-        api.get('/api/v1/aggregator/admin/trends'),
-        api.get('/api/v1/aggregator/posts?limit=20')
+        api.get('/api/v1/aggregator/admin/stats', token),
+        api.get('/api/v1/aggregator/admin/trends', token),
+        api.get('/api/v1/aggregator/posts?limit=20', token)
       ]);
-      setStats(s.data);
-      setTrends(t.data.trends || []);
-      setPosts(p.data);
+      setStats(s);
+      setTrends(t.trends || []);
+      setPosts(p);
     } catch (err) {
       toast.error("Admin access denied or server error");
     } finally {
@@ -43,7 +40,8 @@ export default function AdminAggregatorPage() {
 
   const handleModerate = async (postId, hidden) => {
     try {
-      await api.patch(`/api/v1/aggregator/admin/posts/${postId}`, { hidden });
+      const token = localStorage.getItem('ia_token') || localStorage.getItem('token');
+      await api.patch(`/api/v1/aggregator/admin/posts/${postId}`, { hidden }, token);
       toast.success("Post visibility updated");
       fetchData();
     } catch (err) {
@@ -54,7 +52,8 @@ export default function AdminAggregatorPage() {
   const handleDelete = async (postId) => {
     if (!confirm("Delete post permanently?")) return;
     try {
-      await api.delete(`/api/v1/aggregator/admin/posts/${postId}`);
+      const token = localStorage.getItem('ia_token') || localStorage.getItem('token');
+      await api.del(`/api/v1/aggregator/admin/posts/${postId}`, token);
       toast.success("Post deleted");
       fetchData();
     } catch (err) {
