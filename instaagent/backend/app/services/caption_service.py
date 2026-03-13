@@ -103,7 +103,7 @@ async def generate_caption(
     }}"""
 
         response = await _get_client().messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-20250514",
             max_tokens=1200,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -152,7 +152,7 @@ async def generate_comment_reply(
     Write a warm, brief reply that thanks them and gently encourages a purchase/DM."""
 
         response = await _get_client().messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-20250514",
             max_tokens=200,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -182,7 +182,7 @@ async def analyze_product_photo(image_base64: str) -> dict:
 
     try:
         response = await _get_client().messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-20250514",
             max_tokens=400,
             messages=[
                 {
@@ -231,7 +231,7 @@ async def generate_reels_script(product_name: str, additional_info: str):
     """
     
     response = await _get_client().messages.create(
-        model="claude-3-haiku-20240307",
+        model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -260,7 +260,7 @@ async def get_seo_hashtags(
     """
 
     response = await _get_client().messages.create(
-        model="claude-3-5-sonnet-20240620",
+        model="claude-sonnet-4-20250514",
         max_tokens=600,
         system=system,
         messages=[{"role": "user", "content": prompt}],
@@ -268,5 +268,5 @@ async def get_seo_hashtags(
 
     raw = response.content[0].text.strip()
     # Match any hashtags in the response if JSON fails or as fallback
-    tags = re.findall(r"#\w+", raw)
+    tags = re.findall(r"#[\w\u0900-\u097F\u0C00-\u0C7F\u0B80-\u0BFF\u0C80-\u0CFF]+", raw)
     return tags[:20]

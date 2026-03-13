@@ -222,7 +222,7 @@ Return ONLY this JSON structure (Raw JSON string):
 
         client = _get_client()
         response = await client.messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-20250514",
             max_tokens=2000,
             system=system,
             messages=[{"role": "user", "content": prompt}],
@@ -339,7 +339,8 @@ Return ONLY this JSON structure (Raw JSON string):
         try:
             rpc_res = supabase.rpc("get_trending_hashtags", {"hashtag_limit": limit}).execute()
             return rpc_res.data
-        except:
+        except Exception as e:
+            logger.warning("RPC fallback (trending hashtags): %s", e)
             # Fallback to manual aggregation (less efficient)
             resp = supabase.table("aggregated_posts").select("hashtags").limit(1000).execute()
             all_tags = []
@@ -354,7 +355,7 @@ Return ONLY this JSON structure (Raw JSON string):
     def _extract_hashtags(self, caption: str) -> List[str]:
         if not caption:
             return []
-        return re.findall(r"#\w+", caption)
+        return re.findall(r"#[\w\u0900-\u097F\u0C00-\u0C7F\u0B80-\u0BFF\u0C80-\u0CFF]+", caption)
 
     async def get_content_format_stats(self, user_id: UUID) -> List[Dict[str, Any]]:
         """Get engagement stats grouped by media type."""
@@ -363,7 +364,8 @@ Return ONLY this JSON structure (Raw JSON string):
         try:
             res = supabase.rpc("aggregator_content_format_stats", {"p_user_id": str(user_id)}).execute()
             return res.data or []
-        except:
+        except Exception as e:
+            logger.warning("RPC fallback (content format): %s", e)
             # Python fallback
             resp = supabase.table("aggregated_posts") \
                 .select("media_type, engagement_rate") \
@@ -419,11 +421,21 @@ Return ONLY this JSON structure (Raw JSON string):
             except:
                 continue
         
-        # Calculate weekly averages
+        # Calculate weekly averages based on actual date range
         total_owned = sum(h["owned_count"] for h in heatmap.values())
         total_comp = sum(h["competitor_count"] for h in heatmap.values())
-        
-        # Assume 4-week window for avg calculation
+
+        weeks = 4 # Default
+        if data:
+            try:
+                dates = [datetime.fromisoformat(p["posted_at"].replace("Z", "+00:00")) for p in data]
+                min_date = min(dates)
+                max_date = max(dates)
+                days_diff = (max_date - min_date).days
+                weeks = max(1, days_diff / 7)
+            except:
+                pass
+
         return {
             "heatmap": [
                 {
@@ -431,8 +443,8 @@ Return ONLY this JSON structure (Raw JSON string):
                     "competitor_avg_count": round(h["competitor_count"] / comp_acc_count, 1)
                 } for h in heatmap.values()
             ],
-            "avg_per_week_owned": round(total_owned / 4, 1),
-            "avg_per_week_competitor": round((total_comp / comp_acc_count) / 4, 1)
+            "avg_per_week_owned": round(total_owned / weeks, 1),
+            "avg_per_week_competitor": round((total_comp / comp_acc_count) / weeks, 1)
         }
 
     async def get_comparison_stats(self, user_id: UUID) -> Dict[str, Any]:
@@ -443,22 +455,37 @@ Return ONLY this JSON structure (Raw JSON string):
             .eq("user_id", str(user_id)) \
             .execute().data or []
         
+        # Fetch posts for all accounts in one batch query to avoid N+1
+        acc_ids = [str(acc["id"]) for acc in accs]
+        all_posts_resp = supabase.table("aggregated_posts") \
+            .select("aggregator_account_id, engagement_rate, hashtags, posted_at") \
+            .in_("aggregator_account_id", acc_ids) \
+            .order("posted_at", desc=True) \
+            .execute()
+        
+        from collections import defaultdict, Counter
+        posts_by_acc = defaultdict(list)
+        for p in (all_posts_resp.data or []):
+            if len(posts_by_acc[p["aggregator_account_id"]]) < 50:
+                posts_by_acc[p["aggregator_account_id"]].append(p)
+
         results = []
         for acc in accs:
-            posts = supabase.table("aggregated_posts") \
-                .select("engagement_rate, hashtags") \
-                .eq("aggregator_account_id", acc["id"]) \
-                .order("posted_at", desc=True) \
-                .limit(50) \
-                .execute().data or []
-            
+            posts = posts_by_acc[str(acc["id"])]
             avg_er = round(sum(p["engagement_rate"] for p in posts) / len(posts), 2) if posts else 0
             
-            # Extract top hashtags for this account
+            # Calculate actual weekly volume
+            weeks = 4
+            if posts:
+                try:
+                    dates = [datetime.fromisoformat(p["posted_at"].replace("Z", "+00:00")) for p in posts]
+                    days_diff = (max(dates) - min(dates)).days
+                    weeks = max(1, days_diff / 7)
+                except: pass
+
             all_tags = []
             for p in posts:
                 if p.get("hashtags"): all_tags.extend(p["hashtags"])
-            from collections import Counter
             top_tags = [tag for tag, _ in Counter(all_tags).most_common(5)]
             
             results.append({
@@ -466,7 +493,7 @@ Return ONLY this JSON structure (Raw JSON string):
                 "account_type": acc["account_type"],
                 "followers": acc["followers_count"],
                 "avg_engagement": avg_er,
-                "posts_per_week": round(len(posts) / 4, 1), # Approx
+                "posts_per_week": round(len(posts) / weeks, 1),
                 "top_hashtags": top_tags
             })
         
