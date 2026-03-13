@@ -21,15 +21,15 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
         method: "POST", headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Publish failed");
-      setMsg(`✅ Posted! ${data.permalink || ""}`);
+      if (!res.ok) throw new Error(data.detail || t("posts.publish_failed"));
+      setMsg(`${t("posts.publish_success")} ${data.permalink || ""}`);
       onRefresh();
     } catch (e) { setMsg(`❌ ${e.message}`); }
     finally { setPublishing(false); }
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this post permanently?")) return;
+    if (!window.confirm(t("posts.delete_confirm"))) return;
     setDeleting(true);
     try {
       await fetch(`${API}/api/v1/posts/${post.id}`, {
@@ -63,18 +63,18 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
         {/* Photo row */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 22 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Original</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>{t("posts.original")}</div>
             <div style={{ borderRadius: 12, overflow: "hidden", height: 200, background: T.surfaceAlt }}>
               {post.original_photo_url
-                ? <img src={post.original_photo_url} alt="Original" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ? <img src={post.original_photo_url} alt={t("posts.original")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 32 }}>📷</div>}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: T.primary, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Post Photo</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: T.primary, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>{t("posts.post_photo")}</div>
             <div style={{ borderRadius: 12, overflow: "hidden", height: 200, background: T.surfaceAlt, border: `2px solid ${T.primary}40` }}>
               {(post.edited_photo_url || post.original_photo_url)
-                ? <img src={post.edited_photo_url || post.original_photo_url} alt="Post Photo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ? <img src={post.edited_photo_url || post.original_photo_url} alt={t("posts.post_photo")} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 32 }}>📷</div>}
             </div>
           </div>
@@ -84,7 +84,7 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
         {(captionHi || captionEn) && (
           <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              📝 AI Caption (Claude SEO Optimized)
+              {t("posts.ai_caption_label")}
             </div>
             {captionHi && (
               <div style={{ fontSize: 14, color: T.text, lineHeight: 1.8, fontFamily: T.fontDevan, marginBottom: captionEn ? 12 : 0, whiteSpace: "pre-wrap" }}>
@@ -104,7 +104,7 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
         {hashtags.length > 0 && (
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              # Hashtags ({hashtags.length})
+              {t("posts.hashtag_label")} ({hashtags.length})
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {hashtags.map((h, i) => (
@@ -118,7 +118,7 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
                 </span>
               ))}
             </div>
-            <div style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>💡 Click any hashtag to copy it</div>
+            <div style={{ fontSize: 11, color: T.textDim, marginTop: 6 }}>{t("posts.hashtag_copy_hint")}</div>
           </div>
         )}
 
@@ -126,17 +126,17 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
         <div style={{ display: "flex", gap: 20, marginBottom: 20, flexWrap: "wrap" }}>
           {post.created_at && (
             <div style={{ fontSize: 12, color: T.textMuted }}>
-              📅 Created: {new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              {t("posts.created_at")}: {new Date(post.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
             </div>
           )}
           {post.scheduled_at && post.status === "scheduled" && (
             <div style={{ fontSize: 12, color: T.primary, fontWeight: 600 }}>
-              ⏰ Scheduled: {new Date(new Date(post.scheduled_at).getTime() + 19800000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST
+              {t("posts.scheduled_at")}: {new Date(new Date(post.scheduled_at).getTime() + 19800000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST
             </div>
           )}
           {post.posted_at && (
             <div style={{ fontSize: 12, color: T.green, fontWeight: 600 }}>
-              ✅ Posted: {new Date(new Date(post.posted_at).getTime() + 19800000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST
+              {t("posts.posted_at")}: {new Date(new Date(post.posted_at).getTime() + 19800000).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} IST
             </div>
           )}
         </div>
@@ -166,13 +166,13 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
               disabled={publishing}
               style={{ padding: "11px 22px", background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: publishing ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
             >
-              {publishing ? <><Spinner size={14} color="#fff" /> Posting...</> : "🚀 Post to Instagram Now"}
+              {publishing ? <><Spinner size={14} color="#fff" /> {t("common.processing")}</> : `🚀 ${t("create.publish_btn")}`}
             </button>
           )}
           {post.status === "posted" && post.instagram_permalink && (
             <a href={post.instagram_permalink} target="_blank" rel="noreferrer"
               style={{ padding: "11px 22px", background: `linear-gradient(135deg, #833AB4, #FD1D1D, #FCB045)`, color: "#fff", borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-              {I.ig} View on Instagram
+              {I.ig} {t("posts.view_on_ig")}
             </a>
           )}
           <button
@@ -180,7 +180,7 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
             disabled={deleting}
             style={{ padding: "11px 20px", background: "transparent", color: T.red, border: `1px solid ${T.red}50`, borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: deleting ? "wait" : "pointer" }}
           >
-            {deleting ? "Deleting..." : "🗑 Delete"}
+            {deleting ? t("posts.deleting") : t("posts.delete_btn")}
           </button>
         </div>
       </div>
@@ -223,8 +223,8 @@ export const PostsView = ({ token }) => {
       )}
 
       <div className="fade-up" style={{ marginBottom: 22 }}>
-        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>My Posts</h1>
-        <p style={{ color: T.textMuted, fontSize: 14 }}>Click any post to see full details, captions &amp; hashtags</p>
+        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>{t("posts.title")}</h1>
+        <p style={{ color: T.textMuted, fontSize: 14 }}>{t("posts.subtitle")}</p>
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
@@ -234,7 +234,7 @@ export const PostsView = ({ token }) => {
           </button>
         ))}
         <button onClick={load} style={{ marginLeft: "auto", padding: "7px 12px", border: `1px solid ${T.border}`, borderRadius: 10, background: "transparent", color: T.textMuted, fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          {I.refresh} Refresh
+          {I.refresh} {t("aggregator.refresh")}
         </button>
       </div>
 
@@ -245,8 +245,8 @@ export const PostsView = ({ token }) => {
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: 60 }}>
           <div style={{ fontSize: 44, marginBottom: 14 }}>📭</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 6 }}>No posts yet</div>
-          <div style={{ fontSize: 14, color: T.textMuted }}>Create your first post to see it here!</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: T.text, marginBottom: 6 }}>{t("posts.no_posts")}</div>
+          <div style={{ fontSize: 14, color: T.textMuted }}>{t("posts.create_first")}</div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -272,7 +272,7 @@ export const PostsView = ({ token }) => {
                   <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>{post.product_name}</div>
                   <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 4 }}>
                     {captionPreview}{captionPreview.length >= 160 ? "… " : " "}
-                    <span style={{ color: T.primary, fontWeight: 600, fontSize: 11 }}>click to read more ↗</span>
+                    <span style={{ color: T.primary, fontWeight: 600, fontSize: 11 }}>{t("posts.read_more")} ↗</span>
                   </div>
                   {hashtagCount > 0 && (
                     <div style={{ fontSize: 11, color: T.primary, fontWeight: 600 }}>#{hashtagCount} hashtags</div>

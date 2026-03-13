@@ -120,8 +120,8 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
     <div style={{ padding: "28px 32px", maxWidth: 640 }}>
       {Toast}
       <div className="fade-up" style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>Settings</h1>
-        <p style={{ color: T.textMuted, fontSize: 14 }}>Manage your profile and integrations</p>
+        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>{t("settings.title")}</h1>
+        <p style={{ color: T.textMuted, fontSize: 14 }}>{t("settings.subtitle")}</p>
       </div>
 
       {/* ── Quick Setup Guide (for new users) ──────────────────────────────── */}
@@ -129,8 +129,8 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
         <div className="fade-up" style={{ background: `linear-gradient(135deg, ${T.primary}12, ${T.accent || T.primary}08)`, border: `1px solid ${T.primary}30`, borderRadius: 18, padding: 22, marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>🚀 Quick Setup Guide</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{stepsCompleted}/3 steps complete — finish setup in 2 minutes</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{t("settings.guide_title")}</div>
+              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{t("settings.guide_steps").replace("{val}", stepsCompleted)}</div>
             </div>
             {/* Progress bar */}
             <div style={{ display: "flex", gap: 6 }}>
@@ -150,41 +150,41 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
             </div>
           ))}
           <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>
-            💡 <strong>How it works:</strong> Connect Instagram → Send a product photo via WhatsApp → InstaAgent auto-posts it with AI captions at your set time. No developer knowledge needed!
+            {t("settings.how_it_works")}
           </div>
         </div>
       )}
 
       {/* Profile Section */}
       <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 18 }}>👤 Profile Information</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 18 }}>{t("settings.profile_info")}</div>
         <div style={fieldWrap}>
-          <label style={labelStyle}>Full Name</label>
-          <input value={form.full_name} onChange={e => patch("full_name", e.target.value)} style={inputStyle} placeholder="Your full name" />
+          <label style={labelStyle}>{t("settings.full_name")}</label>
+          <input value={form.full_name} onChange={e => patch("full_name", e.target.value)} style={inputStyle} placeholder={t("settings.full_name")} />
         </div>
         <div style={fieldWrap}>
-          <label style={labelStyle}>Phone</label>
+          <label style={labelStyle}>{t("settings.phone")}</label>
           <input value={form.phone} onChange={e => patch("phone", e.target.value)} style={inputStyle} placeholder="+91 XXXXX XXXXX" />
         </div>
         <div style={fieldWrap}>
-          <label style={labelStyle}>City</label>
+          <label style={labelStyle}>{t("settings.city")}</label>
           <input value={form.city} onChange={e => patch("city", e.target.value)} style={inputStyle} placeholder="Mumbai, Delhi, Hyderabad..." />
         </div>
         <div style={fieldWrap}>
-          <label style={labelStyle}>Auto-Post Time (IST)</label>
+          <label style={labelStyle}>{t("settings.post_time")}</label>
           <input type="time" value={form.preferred_post_time} onChange={e => patch("preferred_post_time", e.target.value)} style={inputStyle} />
-          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Posts scheduled for this time are automatically published</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>{t("settings.post_time_desc")}</div>
         </div>
       </div>
 
       {/* Language Section — changes entire app immediately */}
       <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, marginBottom: 20 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6 }}>🌐 App Language</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6 }}>{t("settings.lang_title")}</div>
         <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16 }}>
-          All sidebar menus and UI labels will translate immediately when you select a language and save.
+          {t("settings.lang_desc")}
         </div>
         <div style={fieldWrap}>
-          <label style={labelStyle}>Select Language</label>
+          <label style={labelStyle}>{t("settings.select_lang")}</label>
           <select
             value={form.language}
             onChange={e => {
@@ -205,7 +205,7 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
       {/* Instagram Integration */}
       <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, marginBottom: 24 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 16 }}>
-          {I.ig} Instagram Integration
+          {I.ig} {t("settings.ig_integration")}
         </div>
         {igStatus === null ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 16 }}><Spinner /></div>
@@ -214,31 +214,28 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: `${T.green}15`, border: `1px solid ${T.green}40`, borderRadius: 10, marginBottom: 14 }}>
               <span style={{ color: T.green, fontSize: 20 }}>✅</span>
               <div>
-                <div style={{ fontWeight: 700, color: T.green, fontSize: 14 }}>Connected</div>
-                <div style={{ fontSize: 12, color: T.textMuted }}>@{igStatus.instagram_username || user?.instagram_username || "your account"}</div>
-                {igStatus.token_valid_until && (
-                  <div style={{ fontSize: 11, color: T.textDim, marginTop: 2 }}>Token expires: {new Date(igStatus.token_valid_until * 1000).toLocaleDateString()}</div>
-                )}
+                <div style={{ fontWeight: 700, color: T.green, fontSize: 14 }}>{t("settings.ig_connected")}</div>
+                <div style={{ fontSize: 12, color: T.textMuted }}>@{igStatus.instagram_username || user?.instagram_username || "account"}</div>
               </div>
             </div>
             <button
               onClick={disconnectInstagram}
               style={{ padding: "10px 18px", background: "transparent", border: `1px solid ${T.red}`, color: T.red, borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
             >
-              Disconnect Instagram
+              {t("settings.ig_disconnect")}
             </button>
           </div>
         ) : (
           <div>
             <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14 }}>
-              Connect your Instagram Business account to enable auto-posting, analytics, and AI captions.
+              {t("settings.ig_desc")}
             </div>
             <button
               onClick={connectInstagram}
               disabled={igLoading}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 20px", background: `linear-gradient(135deg, #833AB4, #FD1D1D, #FCB045)`, color: "#fff", border: "none", borderRadius: 10, cursor: igLoading ? "wait" : "pointer", fontWeight: 700, fontSize: 14, opacity: igLoading ? 0.7 : 1 }}
             >
-              {igLoading ? <><Spinner size={14} color="#fff" /> Connecting...</> : <>{I.ig} Connect Instagram</>}
+              {igLoading ? <><Spinner size={14} color="#fff" /> {t("common.processing")}</> : <>{I.ig} {t("settings.ig_connect_btn")}</>}
             </button>
           </div>
         )}
@@ -249,22 +246,22 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
           <span style={{ fontSize: 22 }}>💬</span>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>WhatsApp Bot</div>
-            <div style={{ fontSize: 11, color: T.textMuted }}>Send photos on WhatsApp → Auto-post to Instagram</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t("settings.wa_bot")}</div>
+            <div style={{ fontSize: 11, color: T.textMuted }}>{t("settings.wa_desc")}</div>
           </div>
           {form.whatsapp_phone ? (
             <span style={{ marginLeft: "auto", background: `${T.green}20`, color: T.green, border: `1px solid ${T.green}40`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
-              ✅ Linked
+              {t("settings.wa_linked")}
             </span>
           ) : (
             <span style={{ marginLeft: "auto", background: `${T.warning || "#F59E0B"}20`, color: T.warning || "#F59E0B", border: `1px solid ${T.warning || "#F59E0B"}40`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
-              Not linked
+              {t("settings.wa_not_linked")}
             </span>
           )}
         </div>
 
         <div style={fieldWrap}>
-          <label style={labelStyle}>Your WhatsApp Number</label>
+          <label style={labelStyle}>{t("settings.wa_number")}</label>
           <div style={{ display: "flex", gap: 8 }}>
             <span style={{ padding: "11px 12px", background: T.surfaceAlt, border: `1px solid ${T.borderLight}`, borderRadius: 10, color: T.textMuted, fontSize: 14 }}>+91</span>
             <input
@@ -279,24 +276,20 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
             />
           </div>
           <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>
-            Enter the WhatsApp number you'll use to send photos to InstaAgent
+            {t("settings.wa_number_desc")}
           </div>
         </div>
 
         {form.whatsapp_phone && (
           <div style={{ background: `${T.primary}10`, border: `1px solid ${T.primary}30`, borderRadius: 10, padding: "12px 14px", fontSize: 12, color: T.textMuted, lineHeight: 1.6 }}>
-            📱 <strong style={{ color: T.text }}>How to use:</strong><br />
-            1. Save InstaAgent's WhatsApp number: <strong style={{ color: T.primary }}>+91 888 222 5555</strong><br />
-            2. Send any product photo to that number<br />
-            3. The bot will analyze it and generate captions<br />
-            4. Tap the link in WhatsApp to review and post! 🚀
+            {t("settings.wa_how_to")}
           </div>
         )}
       </div>
 
       {/* Save button */}
       <button onClick={handleSave} disabled={saving} style={{ width: "100%", padding: 14, background: T.primary, color: "#fff", border: "none", borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: saving ? "wait" : "pointer", opacity: saving ? 0.7 : 1, transition: "all .2s" }}>
-        {saving ? "Saving..." : "Save Settings"}
+        {saving ? t("common.processing") : t("common.save")}
       </button>
     </div>
   );

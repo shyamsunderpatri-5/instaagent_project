@@ -4,6 +4,7 @@ import { T, I, GlobalStyles, Spinner, useToast, FeatureCtx, LangCtx, makeLangVal
 
 import { api } from "./common/api";
 import { Sidebar } from "./layout/Sidebar";
+import { Header } from "./layout/Header";
 import { DashboardView } from "./views/DashboardView";
 import { CreatePostView } from "./views/CreatePostView";
 import { PostsView } from "./views/MyPostsView";
@@ -16,6 +17,7 @@ import { AggregatorView } from "./views/AggregatorView";
 import { AdminAggregatorView } from "./views/AdminAggregatorView";
 
 import { OnboardingView } from "./views/OnboardingView";
+import { LanguageProvider } from "./common/LanguageContext";
 import ErrorBoundary from "./common/ErrorBoundary";
 
 export function InstaAgent() {
@@ -26,12 +28,7 @@ export function InstaAgent() {
   const [token,   setToken]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [authForm,setAuthForm]= useState({ email: "", password: "", full_name: "", isLogin: true });
-  // Language state — initialized from localStorage or user profile
-  const [lang, setLangState] = useState(() => (
-    typeof window !== "undefined" ? (localStorage.getItem("ia_lang") || "hi") : "hi"
-  ));
-  const setLang = (l) => { setLangState(l); if (typeof window !== "undefined") localStorage.setItem("ia_lang", l); };
-  const langValue = makeLangValue(lang, setLang);
+  
   const { show, Toast } = useToast();
 
   const needsOnboarding = user && !user.onboarding_done;
@@ -78,12 +75,7 @@ export function InstaAgent() {
     }
   }, [fetchBase]);
 
-  // Sync language from user profile when loaded
-  useEffect(() => {
-    if (user?.language && user.language !== lang) {
-      setLang(user.language);
-    }
-  }, [user?.language]);
+  // Sync level handled by LanguageProvider
 
 
 
@@ -213,31 +205,34 @@ export function InstaAgent() {
   // Dashboard Context Provider and Layout
   return (
     <ErrorBoundary>
-    <LangCtx.Provider value={langValue}>
+    <LanguageProvider user={user} token={token} onUserUpdate={setUser}>
     <FeatureCtx.Provider value={{ features: features.features || {}, trialPosts: features.free_trial_posts || 5, botUsername: features.telegram_bot_username || "InstaAgent_bot" }}>
         <GlobalStyles />
         <div style={{ display: "flex", minHeight: "100vh" }}>
             <Sidebar active={view} setActive={setView} user={user} usage={usage} onLogout={logout} loading={loading} />
-            <main style={{ flex: 1, position: "relative" }}>
-                 {loading && <div style={{ position: "fixed", top: 20, right: 32, zIndex: 50 }}><Spinner size={20} /></div>}
-                 
-                 <div className="slide-in" key={view}>
-                    {view === "dashboard" && <DashboardView setActive={setView} user={user} usage={usage} token={token} />}
-                    {view === "create"    && <CreatePostView user={user} token={token} onPostCreated={() => { fetchBase(token); setView("posts"); }} />}
-                    {view === "posts"     && <PostsView token={token} />}
-                    {view === "analytics" && <AnalyticsView token={token} setActive={setView} />}
-                    {view === "billing"   && <BillingView user={user} usage={usage} token={token} />}
-                    {view === "admin"     && <AdminView token={token} user={user} />}
-                    {view === "admin_aggregator" && <AdminAggregatorView token={token} />}
-                    {view === "settings"  && <SettingsView user={user} token={token} onUserUpdate={(u) => { setUser(u); fetchBase(token); }} />}
-                    {view === "telegram"  && <TelegramView user={user} />}
-                    {view === "aggregator"&& <AggregatorView token={token} user={user} />}
+            <main style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
+                 <Header activeView={view} />
+                 <div style={{ flex: 1, position: "relative" }}>
+                    {loading && <div style={{ position: "fixed", top: 80, right: 32, zIndex: 50 }}><Spinner size={20} /></div>}
+                    
+                    <div className="slide-in" key={view} style={{ height: "100%" }}>
+                        {view === "dashboard" && <DashboardView setActive={setView} user={user} usage={usage} token={token} />}
+                        {view === "create"    && <CreatePostView user={user} token={token} onPostCreated={() => { fetchBase(token); setView("posts"); }} />}
+                        {view === "posts"     && <PostsView token={token} />}
+                        {view === "analytics" && <AnalyticsView token={token} setActive={setView} />}
+                        {view === "billing"   && <BillingView user={user} usage={usage} token={token} />}
+                        {view === "admin"     && <AdminView token={token} user={user} />}
+                        {view === "admin_aggregator" && <AdminAggregatorView token={token} />}
+                        {view === "settings"  && <SettingsView user={user} token={token} onUserUpdate={(u) => { setUser(u); fetchBase(token); }} />}
+                        {view === "telegram"  && <TelegramView user={user} />}
+                        {view === "aggregator"&& <AggregatorView token={token} user={user} />}
+                    </div>
                  </div>
             </main>
         </div>
         {Toast}
     </FeatureCtx.Provider>
-    </LangCtx.Provider>
+    </LanguageProvider>
     </ErrorBoundary>
   );
 }

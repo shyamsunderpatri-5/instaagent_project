@@ -122,21 +122,21 @@ export const BillingView = ({ user, usage, token }) => {
     <div style={{ padding: "28px 32px", maxWidth: 960 }}>
        {Toast}
        <div className="fade-up" style={{ marginBottom: 28 }}>
-        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>Billing & Subscriptions</h1>
-        <p style={{ color: T.textMuted, fontSize: 14 }}>Manage your plan and usage limits</p>
+        <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 6 }}>{t("billing.title")}</h1>
+        <p style={{ color: T.textMuted, fontSize: 14 }}>{t("billing.subtitle")}</p>
       </div>
 
       {/* Current Plan Summary (always shown) */}
       <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 24, marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <div style={{ fontSize: 12, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>Current Plan</div>
+          <div style={{ fontSize: 12, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>{t("billing.current_plan")}</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: T.text, display: "flex", alignItems: "center", gap: 10 }}>
             <Badge status={currentPlanId} />
-            {currentPlan?.name || currentPlanId.charAt(0).toUpperCase() + currentPlanId.slice(1)} Plan
+            {currentPlan?.name || currentPlanId.charAt(0).toUpperCase() + currentPlanId.slice(1)} {t("billing.plan")}
           </div>
           <div style={{ fontSize: 13, color: T.textMuted, marginTop: 4 }}>
-            Status: <span style={{ color: T.green }}>{status.toUpperCase()}</span>
-            {usage && ` · ${usage.posts_used || 0} / ${usage.posts_limit || 5} posts used this month`}
+            {t("billing.status")}: <span style={{ color: T.green }}>{status.toUpperCase()}</span>
+            {usage && ` · ${t("billing.usage_limit").replace("{used}", usage.posts_used || 0).replace("{limit}", usage.posts_limit || 5)}`}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -149,12 +149,12 @@ export const BillingView = ({ user, usage, token }) => {
               onClick={async () => {
                 try {
                   await api.post("/api/v1/subscription/cancel", {}, token);
-                  show("Subscription cancelled. Access continues until period end.");
+                  show("Subscription cancelled.");
                 } catch (e) { show(e.message, "error"); }
               }}
               style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 14px", color: T.textMuted, fontSize: 12, cursor: "pointer", marginTop: 8 }}
             >
-              Cancel Plan
+              {t("billing.cancel_btn")}
             </button>
           )}
         </div>
@@ -164,7 +164,7 @@ export const BillingView = ({ user, usage, token }) => {
       {usage && (
         <div className="fade-up" style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 14, padding: "16px 24px", marginBottom: 28 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Monthly Usage</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{t("billing.monthly_usage")}</div>
             <div style={{ fontSize: 13, color: T.textMuted }}>{usage.posts_used || 0} of {usage.posts_limit || 5} posts</div>
           </div>
           <div style={{ height: 8, background: T.bg, borderRadius: 4, overflow: "hidden" }}>
@@ -180,7 +180,7 @@ export const BillingView = ({ user, usage, token }) => {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
           {plans.map((p, i) => (
             <div key={p.id} className="fade-up" style={{ animationDelay: `${i * 100}ms`, background: currentPlanId === p.id ? T.primaryDim : T.surface, border: `1px solid ${currentPlanId === p.id ? T.primary : T.border}`, borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", position: "relative" }}>
-               {currentPlanId === p.id && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: T.primary, color: "#fff", fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap" }}>CURRENT PLAN</div>}
+               {currentPlanId === p.id && <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: T.primary, color: "#fff", fontSize: 10, fontWeight: 800, padding: "4px 12px", borderRadius: 20, whiteSpace: "nowrap" }}>{t("billing.current_plan").toUpperCase()}</div>}
                <div style={{ fontSize: 18, fontWeight: 800, color: T.text, marginBottom: 8 }}>{p.name}</div>
                <div style={{ fontSize: 26, fontWeight: 800, color: T.text, marginBottom: 4 }}>
                  ₹{p.price}<span style={{ fontSize: 14, color: T.textMuted, fontWeight: 400 }}>/mo</span>
@@ -198,7 +198,7 @@ export const BillingView = ({ user, usage, token }) => {
                  disabled={currentPlanId === p.id}
                  style={{ width: "100%", padding: 12, background: currentPlanId === p.id ? T.border : T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: currentPlanId === p.id ? "not-allowed" : "pointer", opacity: currentPlanId === p.id ? 0.5 : 1, transition: "all .2s" }}
                >
-                 {currentPlanId === p.id ? "Already Active" : p.id === "free" ? "Downgrade to Free" : `Upgrade to ${p.name}`}
+                 {currentPlanId === p.id ? t("billing.active") : p.id === "free" ? t("billing.downgrade") : t("billing.upgrade_to").replace("{name}", p.name)}
                </button>
             </div>
           ))}
@@ -207,7 +207,7 @@ export const BillingView = ({ user, usage, token }) => {
 
       {/* Payment note */}
       <div style={{ marginTop: 24, padding: "14px 18px", background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 12, fontSize: 12, color: T.textMuted }}>
-        {I.billing} Payments are processed securely via Razorpay. Subscriptions auto-renew monthly. Cancel anytime.
+        {I.billing} {t("billing.footer")}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 // NEW: Step 3 shows full caption + hashtags + Post Now / Schedule Later options
 
 import { useState, useRef, useEffect } from "react";
-import { T, I, Spinner, Toggle, useFeatures } from "../common/UIComponents";
+import { T, I, Spinner, Toggle, useFeatures, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -202,9 +202,9 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
     <div style={{ padding: "28px 32px", maxWidth: 720 }}>
       <div style={{ marginBottom: 26 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 4 }}>
-          Create Post
+          {t("create.title")}
         </h1>
-        <p style={{ color: T.textMuted, fontSize: 14 }}>Upload product photo — AI generates SEO caption &amp; hashtags</p>
+        <p style={{ color: T.textMuted, fontSize: 14 }}>{t("create.photo_desc")}</p>
       </div>
 
       {/* ── STEP 1: Photo + Product Info ──────────────────────────────────── */}
@@ -222,7 +222,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
               <div>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>📷</div>
                 <div style={{ fontWeight: 700, color: T.primary }}>{photos[0].name}</div>
-                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Click to change</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>{t("common.upload")}</div>
                 {/* Preview */}
                 <img
                   src={URL.createObjectURL(photos[0])}
@@ -233,9 +233,9 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
             ) : (
               <div>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>{I.upload}</div>
-                <div style={{ fontWeight: 600, color: T.text }}>Click or drag your product photo here</div>
+                <div style={{ fontWeight: 600, color: T.text }}>{t("common.first_photo")}</div>
                 <div style={{ fontSize: 12, color: T.textMuted, marginTop: 6 }}>JPG, PNG, HEIC, WebP — any format</div>
-                <div style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>Works with WhatsApp &amp; Telegram forwarded photos</div>
+                <div style={{ fontSize: 11, color: T.textDim, marginTop: 4 }}>{t("aggregator.ai_footer")}</div>
               </div>
             )}
           </div>
@@ -246,13 +246,13 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
             </div>
           )}
 
-          <input value={product} onChange={e => setProduct(e.target.value)} placeholder="Product Name (e.g. Gold Bangles, Cotton Suit)" style={{ ...inputStyle, marginBottom: 12 }} />
+          <input value={product} onChange={e => setProduct(e.target.value)} placeholder={t("create.product_name")} style={{ ...inputStyle, marginBottom: 12 }} />
 
           <select value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }}>
             {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
 
-          <textarea value={info} onChange={e => setInfo(e.target.value)} placeholder="Extra info: price, festival, material, offer... (optional)" rows={2} style={{ ...inputStyle, marginBottom: 14, resize: "vertical" }} />
+          <textarea value={info} onChange={e => setInfo(e.target.value)} placeholder={t("create.price")} rows={2} style={{ ...inputStyle, marginBottom: 14, resize: "vertical" }} />
 
           {/* AI Photo Editing — DEFAULT OFF (user wants original unless they explicitly opt-in) */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, background: T.surfaceAlt, padding: "12px 16px", borderRadius: 12, border: `1px solid ${T.border}` }}>
@@ -278,9 +278,9 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
         <div style={{ textAlign: "center", padding: 40 }}>
           <Spinner size={36} color={T.primary} />
           <div style={{ fontSize: 18, fontWeight: 700, marginTop: 20, color: T.text }}>
-            {procStep === 0 && "📤 Step 1: Uploading photo..."}
-            {procStep === 1 && "🔍 Step 2: Analyzing product details..."}
-            {procStep >= 2 && "✍️ Step 3: Generating SEO captions..."}
+            {procStep === 0 && `📤 ${t("common.upload")}`}
+            {procStep === 1 && `🔍 ${t("common.processing")}`}
+            {procStep >= 2 && `✍️ ${t("common.generate")}`}
           </div>
           <div style={{ fontSize: 13, color: T.textMuted, marginTop: 8 }}>
             AI is working its magic (~12s)
@@ -296,7 +296,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
             <div style={{ background: actionDone.type === "posted" ? `${T.green}18` : `${T.primary}18`, border: `1px solid ${actionDone.type === "posted" ? T.green : T.primary}40`, borderRadius: 14, padding: "16px 20px", marginBottom: 20, textAlign: "center" }}>
               <div style={{ fontSize: 20, marginBottom: 6 }}>{actionDone.type === "posted" ? "🎉" : "⏰"}</div>
               <div style={{ fontWeight: 700, color: actionDone.type === "posted" ? T.green : T.primary, fontSize: 15 }}>{actionDone.message}</div>
-              <button onClick={handleSuccess} style={{ marginTop: 12, padding: "10px 22px", background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>Create Another Post</button>
+              <button onClick={handleSuccess} style={{ marginTop: 12, padding: "10px 22px", background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, cursor: "pointer" }}>{t("create.title")}</button>
             </div>
           )}
 
@@ -332,7 +332,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
               {/* Caption Preview */}
               {(captionEn || captionHi) && (
                 <div style={{ background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>AI-Generated Caption</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>{t("create.generate_btn")}</div>
                   {captionHi && (
                     <div style={{ fontSize: 14, color: T.text, lineHeight: 1.7, marginBottom: 10, fontFamily: T.fontDevan }}>
                       {captionHi}
@@ -364,7 +364,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
               {/* ── Publish / Schedule Buttons ────────────────────────────────── */}
               <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 16, padding: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 16 }}>
-                  📤 What would you like to do?
+                  📤 {t("create.publish_btn")}
                 </div>
 
                 {/* Post Now */}
@@ -373,7 +373,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
                   disabled={publishing || scheduling || !postReady}
                   style={{ width: "100%", padding: "15px 20px", background: postReady ? `linear-gradient(135deg, ${T.primary}, ${T.accent || T.primary})` : T.border, color: "#fff", border: "none", borderRadius: 14, fontWeight: 800, fontSize: 16, cursor: (publishing || scheduling || !postReady) ? "wait" : "pointer", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, opacity: !postReady ? 0.5 : 1, boxShadow: postReady ? `0 4px 15px ${T.primary}40` : "none" }}
                 >
-                  {publishing ? <><Spinner size={18} color="#fff" /> Posting...</> : "🚀 Post to Instagram Now"}
+                  {publishing ? <><Spinner size={18} color="#fff" /> {t("common.processing")}</> : `🚀 ${t("create.publish_btn")}`}
                 </button>
 
                 {/* Schedule at settings time */}
@@ -409,7 +409,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
 
                 {/* Discard */}
                 <button onClick={reset} style={{ width: "100%", marginTop: 14, padding: "10px 0", background: "transparent", color: T.textMuted, border: "none", fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>
-                  Discard &amp; Start Over
+                  {t("common.cancel")}
                 </button>
               </div>
             </>
