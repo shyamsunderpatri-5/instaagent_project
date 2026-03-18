@@ -37,8 +37,8 @@ export const LanguageProvider = ({ children, user, token, onUserUpdate }) => {
     // Sync with backend if logged in
     if (token) {
       try {
-        const updatedUser = await api.patch("/api/v1/auth/me", { language: langCode }, token);
-        if (onUserUpdate) onUserUpdate(updatedUser);
+        const res = await api.patch("/api/v1/auth/me", { language: langCode }, token);
+        if (onUserUpdate) onUserUpdate(res.user || res);
       } catch (err) {
         console.error("Failed to sync language to profile:", err);
       }

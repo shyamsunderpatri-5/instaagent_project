@@ -222,16 +222,18 @@ def _generate_reset_token() -> str:
 
 def _safe_user_response(user: dict) -> dict:
     """Strip sensitive fields before returning user data to the client."""
-    return {
+    safe_data = {
         k: user.get(k)
         for k in (
             "id", "email", "full_name", "phone", "city", "language",
             "plan", "instagram_username", "is_active", "created_at",
             "telegram_id", "trial_start", "trial_end", "trial_used",
-            "preferred_post_time", "is_admin", "whatsapp_phone", "onboarding_done",
-
+            "preferred_post_time", "is_admin", "whatsapp_phone"
         )
     }
+    # Default onboarding_done to True if column is missing to prevent stuck onboarding
+    safe_data["onboarding_done"] = user.get("onboarding_done", True)
+    return safe_data
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -494,6 +496,7 @@ async def login(body: LoginRequest):
             "plan":        user.get("plan", "free"),
             "language":    user.get("language", "hi"),
             "telegram_id": user.get("telegram_id"),
+            "onboarding_done": user.get("onboarding_done", True),
         },
     }
 
@@ -557,18 +560,10 @@ async def complete_onboarding(
     
     supabase.table("users").update(updates).eq("id", current_user["id"]).execute()
     
-    updated_user = (
-        supabase.table("users")
-        .select("id, email, full_name, phone, city, language, plan, "
-                "instagram_username, is_active, created_at, telegram_id, "
-                "trial_start, trial_end, trial_used, preferred_post_time, "
-                "is_admin, whatsapp_phone, onboarding_done")
-        .eq("id", current_user["id"])
-        .single()
-        .execute()
-    )
-    
-    return {"user": updated_user.data}
+    # Re-fetch to get the updated user
+    res = supabase.table("users").select("*").eq("id", current_user["id"]).single().execute()
+    user_data = _safe_user_response(res.data) if res.data else {}
+    return {"user": user_data}
 
 
 @router.post("/change-password", summary="Change password (requires current password)")

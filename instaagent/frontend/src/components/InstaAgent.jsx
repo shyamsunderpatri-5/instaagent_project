@@ -1,6 +1,6 @@
 // frontend/src/components/InstaAgent.jsx
 import React, { useState, useEffect, useCallback } from "react";
-import { T, I, GlobalStyles, Spinner, useToast, FeatureCtx, LangCtx, makeLangValue } from "./common/UIComponents";
+import { T, I, GlobalStyles, Spinner, useToast, FeatureCtx, LangCtx, makeLangValue, useLang } from "./common/UIComponents";
 
 import { api } from "./common/api";
 import { Sidebar } from "./layout/Sidebar";
@@ -21,6 +21,14 @@ import { LanguageProvider } from "./common/LanguageContext";
 import ErrorBoundary from "./common/ErrorBoundary";
 
 export function InstaAgent() {
+  return (
+    <ErrorBoundary>
+      <InstaAgentContent />
+    </ErrorBoundary>
+  );
+}
+
+function InstaAgentContent() {
   const [view,    setView]    = useState("dashboard");
   const [user,    setUser]    = useState(null);
   const [usage,   setUsage]   = useState(null);
@@ -30,9 +38,6 @@ export function InstaAgent() {
   const [authForm,setAuthForm]= useState({ email: "", password: "", full_name: "", isLogin: true });
   
   const { show, Toast } = useToast();
-
-  const needsOnboarding = user && !user.onboarding_done;
-
 
   const fetchBase = useCallback(async (tk) => {
     try {
@@ -64,7 +69,7 @@ export function InstaAgent() {
     } finally {
         setLoading(false);
     }
-    return true; // Indicate success
+    return true;
   }, [show]);
 
   useEffect(() => {
@@ -77,10 +82,6 @@ export function InstaAgent() {
     }
   }, [fetchBase]);
 
-  // Sync level handled by LanguageProvider
-
-
-
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -89,7 +90,6 @@ export function InstaAgent() {
             show("Please enter your name", "error");
             return;
         }
-
         const path = authForm.isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register";
         const body = authForm.isLogin 
             ? { email: authForm.email, password: authForm.password } 
@@ -125,93 +125,102 @@ export function InstaAgent() {
     );
   }
 
-  // Auth Screen
-  if (!token) {
-    return (
-      <div style={{ height: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        {Toast}
-        <GlobalStyles />
-        <div className="fade-up" style={{ width: "100%", maxWidth: 400, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 32, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}>
-           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, justifyContent: "center" }}>
-              <div style={{ width: 44, height: 44, background: `linear-gradient(135deg, ${T.primary}, ${T.accent})`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{I.ig}</div>
-              <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text }}>InstaAgent</h1>
-           </div>
-
-           <h2 style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8, textAlign: "center" }}>{authForm.isLogin ? "Seller Login" : "Join InstaAgent"}</h2>
-           <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 24, textAlign: "center" }}>Enterprise-grade Instagram Automation</p>
-
-           <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {!authForm.isLogin && (
-                <div>
-                   <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Full Name</label>
-                   <input type="text" required value={authForm.full_name} onChange={e => setAuthForm({...authForm, full_name: e.target.value})} placeholder="Your Name" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
-                </div>
-              )}
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Email Address</label>
-                <input type="email" required value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} placeholder="seller@example.com" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Password</label>
-                <input type="password" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} placeholder="••••••••" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
-              </div>
-              <button
-                  type="submit"
-                  disabled={loading}
-                  style={{ width: "100%", padding: 12, background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "all .2s" }}
-                >
-                  {loading ? <Spinner size={18} color="#fff" /> : (authForm.isLogin ? "Sign In" : "Register")}
-                </button>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
-                  <div style={{ flex: 1, height: 1, background: T.border }} />
-                  <span style={{ fontSize: 12, color: T.textMuted }}>OR</span>
-                  <div style={{ flex: 1, height: 1, background: T.border }} />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await api.get("/api/v1/auth/google");
-                      if (res.auth_url) window.location.href = res.auth_url;
-                    } catch (e) { show(e.message, "error"); }
-                  }}
-                  style={{ width: "100%", padding: 12, background: "#fff", color: "#000", border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, transition: "all .2s" }}
-                >
-                  <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: 18, height: 18 }} />
-                  Continue with Google
-                </button>
-           </form>
-           
-           <div style={{ marginTop: 20, textAlign: "center" }}>
-              <button onClick={() => setAuthForm({...authForm, isLogin: !authForm.isLogin})} style={{ background: "transparent", border: "none", color: T.primary, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                {authForm.isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
-              </button>
-           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Onboarding View
-  if (needsOnboarding) {
-    return (
-      <OnboardingView 
-        user={user} 
-        token={token} 
-        onUserUpdate={setUser}
-        onComplete={() => fetchBase(token)} 
-      />
-    );
-  }
-
-  // Dashboard Context Provider and Layout
   return (
-    <ErrorBoundary>
     <LanguageProvider user={user} token={token} onUserUpdate={setUser}>
+      <InstaAgentProviderShell 
+        view={view} setView={setView} 
+        user={user} setUser={setUser} 
+        usage={usage} features={features} 
+        token={token} loading={loading} 
+        authForm={authForm} setAuthForm={setAuthForm}
+        handleAuth={handleAuth} logout={logout}
+        fetchBase={fetchBase}
+        Toast={Toast}
+        show={show}
+      />
+    </LanguageProvider>
+  );
+}
+
+function InstaAgentProviderShell({ view, setView, user, setUser, usage, features, token, loading, authForm, setAuthForm, handleAuth, logout, fetchBase, Toast, show }) {
+  const { t } = useLang();
+  const needsOnboarding = user && !user.onboarding_done;
+
+  return (
     <FeatureCtx.Provider value={{ features: features.features || {}, trialPosts: features.free_trial_posts || 5, botUsername: features.telegram_bot_username || "InstaAgent_bot" }}>
-        <GlobalStyles />
+      <GlobalStyles />
+      {Toast}
+      
+      {!token ? (
+        <div style={{ height: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="fade-up" style={{ width: "100%", maxWidth: 400, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 20, padding: 32, boxShadow: "0 20px 60px rgba(0,0,0,.5)" }}>
+             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32, justifyContent: "center" }}>
+                <div style={{ width: 44, height: 44, background: `linear-gradient(135deg, ${T.primary}, ${T.accent})`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>{I.ig}</div>
+                <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text }}>{t("auth.title")}</h1>
+             </div>
+
+             <h2 style={{ fontSize: 18, fontWeight: 700, color: T.text, marginBottom: 8, textAlign: "center" }}>{authForm.isLogin ? t("auth.login_title") : t("auth.register_title")}</h2>
+             <p style={{ fontSize: 13, color: T.textMuted, marginBottom: 24, textAlign: "center" }}>{t("auth.subtitle")}</p>
+
+             <form onSubmit={handleAuth} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {!authForm.isLogin && (
+                  <div>
+                     <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("auth.full_name")}</label>
+                     <input type="text" required value={authForm.full_name} onChange={e => setAuthForm({...authForm, full_name: e.target.value})} placeholder="Your Name" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
+                  </div>
+                )}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("auth.email")}</label>
+                  <input type="email" required value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} placeholder="seller@example.com" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 6, textTransform: "uppercase" }}>{t("auth.password")}</label>
+                  <input type="password" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} placeholder="••••••••" style={{ width: "100%", padding: 12, borderRadius: 10, border: `1px solid ${T.border}`, background: T.surfaceAlt, color: T.text, fontSize: 14 }} />
+                </div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    style={{ width: "100%", padding: 12, background: T.primary, color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 8, transition: "all .2s" }}
+                  >
+                    {loading ? <Spinner size={18} color="#fff" /> : (authForm.isLogin ? t("auth.sign_in") : t("auth.register"))}
+                  </button>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+                    <div style={{ flex: 1, height: 1, background: T.border }} />
+                    <span style={{ fontSize: 12, color: T.textMuted }}>{t("auth.or")}</span>
+                    <div style={{ flex: 1, height: 1, background: T.border }} />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await api.get("/api/v1/auth/google");
+                        if (res.auth_url) window.location.href = res.auth_url;
+                      } catch (e) { show(e.message, "error"); }
+                    }}
+                    style={{ width: "100%", padding: 12, background: "#fff", color: "#000", border: `1px solid ${T.border}`, borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: 10, transition: "all .2s" }}
+                  >
+                    <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" style={{ width: 18, height: 18 }} />
+                    {t("auth.google")}
+                  </button>
+             </form>
+             
+             <div style={{ marginTop: 20, textAlign: "center" }}>
+                <button onClick={() => setAuthForm({...authForm, isLogin: !authForm.isLogin})} style={{ background: "transparent", border: "none", color: T.primary, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  {authForm.isLogin ? t("auth.no_account") : t("auth.have_account")}
+                </button>
+             </div>
+          </div>
+        </div>
+      ) : needsOnboarding ? (
+        <OnboardingView 
+          user={user} 
+          token={token} 
+          onUserUpdate={setUser}
+          onComplete={() => fetchBase(token)} 
+        />
+      ) : (
         <div style={{ display: "flex", minHeight: "100vh" }}>
             <Sidebar active={view} setActive={setView} user={user} usage={usage} onLogout={logout} loading={loading} />
             <main style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
@@ -234,10 +243,8 @@ export function InstaAgent() {
                  </div>
             </main>
         </div>
-        {Toast}
+      )}
     </FeatureCtx.Provider>
-    </LanguageProvider>
-    </ErrorBoundary>
   );
 }
 

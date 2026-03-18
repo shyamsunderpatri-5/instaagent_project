@@ -3,7 +3,7 @@
 // NEW: PostDetailModal component shows everything including SEO hashtags
 
 import { useState, useEffect, useCallback } from "react";
-import { T, I, Badge, useToast, Spinner } from "../common/UIComponents";
+import { T, I, Badge, useToast, Spinner, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -13,6 +13,7 @@ const PostDetailModal = ({ post, token, onClose, onRefresh }) => {
   const [publishing, setPublishing] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
   const [msg,        setMsg]        = useState("");
+  const { t } = useLang();
 
   const handlePublish = async () => {
     setPublishing(true); setMsg("");
@@ -195,6 +196,7 @@ export const PostsView = ({ token }) => {
   const [filter,   setFilter]   = useState("all");
   const [selected, setSelected] = useState(null);
   const { show, Toast }         = useToast();
+  const { t }                   = useLang();
 
   const load = useCallback(async () => {
     setLoading(true);

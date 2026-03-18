@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { T, I, Badge, Spinner, useToast } from "../common/UIComponents";
+import { T, I, Badge, Spinner, useToast, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 
 export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
@@ -12,6 +12,7 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
     language: user?.language || "en"
   });
   const { show, Toast } = useToast();
+  const { t } = useLang();
 
   const handleNext = async () => {
     if (step < 3) {
@@ -20,7 +21,7 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
       setLoading(true);
       try {
         const res = await api.post("/api/v1/auth/onboard", formData, token);
-        show("Onboarding complete!", "success");
+        show(t("common.success"), "success");
         onUserUpdate(res.user);
         onComplete();
       } catch (err) {
@@ -45,10 +46,10 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
 
         {step === 1 && (
           <div className="slide-in">
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>Connect Instagram</h1>
-            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>Enter your business handle to start automating.</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>{t("onboarding.connect_ig")}</h1>
+            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>{t("onboarding.ig_desc")}</p>
             <div style={{ marginBottom: 20 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 8, textTransform: "uppercase" }}>Instagram Handle</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 8, textTransform: "uppercase" }}>{t("onboarding.ig_handle")}</label>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: 12, top: 12, color: T.textMuted }}>@</span>
                 <input 
@@ -60,17 +61,17 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
               </div>
             </div>
             <p style={{ fontSize: 12, color: T.textMuted, display: "flex", alignItems: "center", gap: 6 }}>
-              {I.info} You can change this later in settings.
+              {I.info} {t("onboarding.change_later")}
             </p>
           </div>
         )}
 
         {step === 2 && (
           <div className="slide-in">
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>Preferred Timing</h1>
-            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>When should we suggest your daily posts? (IST)</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>{t("onboarding.timing")}</h1>
+            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>{t("onboarding.timing_desc")}</p>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 8, textTransform: "uppercase" }}>Suggest Posts At</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, display: "block", marginBottom: 8, textTransform: "uppercase" }}>{t("onboarding.suggest_at")}</label>
               <input 
                 type="time"
                 value={formData.posting_time}
@@ -83,18 +84,22 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
 
         {step === 3 && (
           <div className="slide-in">
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>Language Preference</h1>
-            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>Choose your primary language for AI captions.</p>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 12 }}>{t("onboarding.lang")}</h1>
+            <p style={{ color: T.textMuted, fontSize: 14, marginBottom: 24 }}>{t("onboarding.lang_desc")}</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
               {[
                 { id: "en", name: "English", flag: "🇬🇧" },
-                { id: "hi", name: "Hindi / Hinglish", flag: "🇮🇳" }
+                { id: "hi", name: "Hindi / Hinglish", flag: "🇮🇳" },
+                { id: "te", name: "Telugu", flag: "🇮🇳" },
+                { id: "ta", name: "Tamil", flag: "🇮🇳" },
+                { id: "kn", name: "Kannada", flag: "🇮🇳" },
+                { id: "mr", name: "Marathi", flag: "🇮🇳" },
               ].map(l => (
                 <div 
                   key={l.id} 
                   onClick={() => setFormData({...formData, language: l.id})}
                   style={{ 
-                    padding: 20, 
+                    padding: 12, 
                     borderRadius: 16, 
                     border: `2px solid ${formData.language === l.id ? T.primary : T.border}`, 
                     background: formData.language === l.id ? T.primaryDim : T.surfaceAlt,
@@ -103,8 +108,8 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
                     transition: "all .2s"
                   }}
                 >
-                  <div style={{ fontSize: 24, marginBottom: 8 }}>{l.flag}</div>
-                  <div style={{ fontWeight: 700, color: T.text }}>{l.name}</div>
+                  <div style={{ fontSize: 20, marginBottom: 4 }}>{l.flag}</div>
+                  <div style={{ fontWeight: 700, color: T.text, fontSize: 13 }}>{l.name}</div>
                 </div>
               ))}
             </div>
@@ -117,7 +122,7 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
               onClick={() => setStep(step - 1)}
               style={{ flex: 1, padding: 14, borderRadius: 12, border: `1px solid ${T.border}`, background: "transparent", color: T.text, fontWeight: 700, cursor: "pointer" }}
             >
-              Back
+              {t("onboarding.back")}
             </button>
           )}
           <button 
@@ -125,7 +130,7 @@ export const OnboardingView = ({ user, token, onComplete, onUserUpdate }) => {
             disabled={loading || (step === 1 && !formData.instagram_username)}
             style={{ flex: 2, padding: 14, borderRadius: 12, border: "none", background: T.primary, color: "#fff", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
-            {loading ? <Spinner size={20} color="#fff" /> : (step === 3 ? "Finish Setup" : "Continue")} {step < 3 && I.arrowRight}
+            {loading ? <Spinner size={20} color="#fff" /> : (step === 3 ? t("onboarding.finish") : t("onboarding.continue"))} {step < 3 && I.arrowRight}
           </button>
         </div>
       </div>

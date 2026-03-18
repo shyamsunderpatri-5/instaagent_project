@@ -27,7 +27,7 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
   const [igStatus, setIgStatus] = useState(null);
   const [igLoading, setIgLoading] = useState(false);
   const { show, Toast } = useToast();
-  const { setLang } = useLang();
+  const { t, setLang } = useLang();
 
   // Load Instagram connection status
   useEffect(() => {

@@ -92,7 +92,8 @@ def _t(lang: str, key: str) -> str:
             "ask_product_name": (
                 "📝 *Product का नाम बताएं:*\n\n"
                 "Example: *सोने की चूड़ी*, *Cotton Suit*, *Diya Set*\n\n"
-                "(या नाम के साथ photo भेजें)"
+                "(या नाम के साथ photo भेजें)\n\n"
+                "इसे रद्द करने के लिए *Cancel* लिखें।"
             ),
             "processing": (
                 "📸 Photo मिली! AI processing शुरू हो रही है...\n\n"
@@ -147,7 +148,8 @@ def _t(lang: str, key: str) -> str:
             "ask_product_name": (
                 "📝 *What is the product name?*\n\n"
                 "Example: *Gold Bangles*, *Cotton Suit*, *Diya Set*\n\n"
-                "(Or send the photo with the name as caption)"
+                "(Or send the photo with the name as caption)\n\n"
+                "Reply *Cancel* to discard this photo."
             ),
             "processing": (
                 "📸 Photo received! AI processing started...\n\n"
@@ -402,6 +404,11 @@ async def _handle_photo(phone: str, message: dict, session: dict) -> None:
 
 async def _handle_product_name_input(phone: str, text: str, session: dict) -> None:
     """User replied with product name after being asked."""
+    if text.strip().lower() in ("cancel", "abort", "stop", "रद्द", "रद्द करें"):
+        _clear_session(phone)
+        await send_wa_text(phone, _t(session.get("lang", "hi"), "cancelled"))
+        return
+
     ctx      = session.get("context", {})
     post_id  = ctx.get("post_id")
     orig_url = ctx.get("original_url")

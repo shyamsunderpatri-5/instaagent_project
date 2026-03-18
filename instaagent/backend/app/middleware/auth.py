@@ -44,7 +44,7 @@ async def get_current_user(
     supabase = get_supabase()
     result = (
         supabase.table("users")
-        .select("id, email, full_name, phone, city, language, plan, is_active, is_admin, instagram_token, instagram_username, instagram_id, instagram_token_expires_at, telegram_id, whatsapp_phone, preferred_post_time, trial_start, trial_end, trial_used, onboarding_done, created_at")
+        .select("id, email, full_name, phone, city, language, plan, is_active, is_admin, instagram_token, instagram_username, instagram_id, telegram_id, whatsapp_phone, preferred_post_time, trial_start, trial_end, trial_used, created_at")
         .eq("id", user_id)
         .single()
         .execute()

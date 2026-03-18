@@ -27,6 +27,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   const [actionDone,  setActionDone]  = useState(null); // { type, message }
   const fileRef = useRef();
   const { features } = useFeatures();
+  const { t } = useLang();
 
   // Poll for edited photo URL after upload
   useEffect(() => {
@@ -146,10 +147,10 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
     if (!postData?.post_id || !customDt) return;
     setScheduling(true);
     try {
-      // customDt is local IST from the datetime-local input
-      const istDate = new Date(customDt);
-      // Convert to ISO and send (backend assumes IST if no tz info)
-      const utcIso = new Date(istDate.getTime() - (5.5 * 60 * 60 * 1000)).toISOString();
+      // customDt is "YYYY-MM-DDTHH:mm"
+      // Force it to be interpreted as IST (+05:30) regardless of browser timezone
+      const istString = customDt + "+05:30";
+      const utcIso = new Date(istString).toISOString();
       const res = await fetch(
         `${API}/api/v1/posts/${postData.post_id}/schedule?scheduled_at=${encodeURIComponent(utcIso)}`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` } }

@@ -1,9 +1,10 @@
 // frontend/src/components/views/AnalyticsView.jsx
 import { useState, useEffect } from "react";
-import { T, I, StatCard, Badge } from "../common/UIComponents";
+import { T, I, StatCard, Badge, useLang, Spinner } from "../common/UIComponents";
 import { api } from "../common/api";
 
 export const AnalyticsView = ({ token, setActive }) => {
+  const { t } = useLang();
   const [stats, setStats] = useState(null);
   const [snaps, setSnaps] = useState([]);
   const [topPosts, setTopPosts] = useState([]);

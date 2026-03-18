@@ -1,6 +1,6 @@
 // frontend/src/components/views/AdminAggregatorView.jsx
 import { useState, useEffect } from "react";
-import { T, I, StatCard, Spinner, useToast } from "../common/UIComponents";
+import { T, I, StatCard, Spinner, useToast, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 import { AggregatedPostCard } from "./aggregator/AggregatedPostCard";
 
@@ -11,6 +11,7 @@ export const AdminAggregatorView = ({ token }) => {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { show } = useToast();
+  const { t } = useLang();
 
   const fetchData = async () => {
     setLoading(true);
@@ -37,9 +38,9 @@ export const AdminAggregatorView = ({ token }) => {
   const handleRefresh = async (accountId) => {
     try {
       await api.post(`/api/v1/aggregator/refresh/${accountId}`, {}, token);
-      show("Sync triggered for account", "success");
+      show(t("admin_agg.refresh_success"), "success");
     } catch (err) {
-      show("Failed to trigger sync", "error");
+      show(t("admin_agg.refresh_error"), "error");
     }
   };
 
@@ -47,7 +48,7 @@ export const AdminAggregatorView = ({ token }) => {
 
   return (
     <div className="fade-up" style={{ padding: 32, maxWidth: 1200, margin: "0 auto" }}>
-       <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 24 }}>Aggregator Administration</h1>
+       <h1 style={{ fontFamily: T.fontHead, fontSize: 24, fontWeight: 800, color: T.text, marginBottom: 24 }}>{t("admin_agg.title")}</h1>
 
        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 32 }}>
           <StatCard label="Total Tracked" value={stats?.total_tracked_accounts} icon={I.dash} color={T.primary} />
@@ -58,7 +59,7 @@ export const AdminAggregatorView = ({ token }) => {
 
        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <section style={{ background: T.surface, padding: 24, borderRadius: 24, border: `1px solid ${T.border}` }}>
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Aggregator Users</h2>
+          <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t("admin_agg.users_title")}</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {stats?.user_details?.map(u => (
               <div key={u.id} style={{ padding: 12, background: T.surfaceAlt, borderRadius: 12, display: "flex", justifyContent: "space-between" }}>
@@ -76,7 +77,7 @@ export const AdminAggregatorView = ({ token }) => {
         </section>
 
         <section style={{ background: T.surface, padding: 24, borderRadius: 24, border: `1px solid ${T.border}` }}>
-          <h2 style={{ fontSize: 18, marginBottom: 16 }}>Tracked Accounts (Global)</h2>
+          <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t("admin_agg.accounts_title")}</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {accounts.map(acc => (
               <div key={acc.id} style={{ padding: 12, background: T.surfaceAlt, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -88,7 +89,7 @@ export const AdminAggregatorView = ({ token }) => {
                   onClick={() => handleRefresh(acc.id)}
                   style={{ background: `${T.primary}20`, color: T.primary, border: `1px solid ${T.primary}40`, borderRadius: 8, padding: "4px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                 >
-                  Manual Refresh
+                  {t("admin_agg.manual_refresh")}
                 </button>
               </div>
             ))}
@@ -97,7 +98,7 @@ export const AdminAggregatorView = ({ token }) => {
       </div>
 
       <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Trending Hashtags</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t("admin_agg.hashtags_title")}</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
           {trends.map(t => (
             <div key={t.tag} style={{ background: T.surface, border: `1px solid ${T.border}`, padding: "8px 16px", borderRadius: 100 }}>
@@ -109,9 +110,9 @@ export const AdminAggregatorView = ({ token }) => {
       </section>
 
       <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Moderation (Recent Posts)</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t("admin_agg.moderation_title")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 }}>
-           {posts.map(p => <AggregatedPostCard key={p.id} post={p} token={token} isAdmin={true} t={(k) => k} />)}
+           {posts.map(p => <AggregatedPostCard key={p.id} post={p} token={token} isAdmin={true} t={t} />)}
         </div>
       </section>
     </div>

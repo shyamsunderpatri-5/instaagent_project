@@ -1,6 +1,6 @@
 // frontend/src/components/views/BillingView.jsx
 import { useState, useEffect } from "react";
-import { T, I, Badge, useToast, Spinner } from "../common/UIComponents";
+import { T, I, Badge, useToast, Spinner, useLang } from "../common/UIComponents";
 import { api } from "../common/api";
 
 // Fallback plans in case API is unavailable — prices should match backend .env
@@ -36,6 +36,7 @@ const FALLBACK_PLANS = [
 ];
 
 export const BillingView = ({ user, usage, token }) => {
+  const { t } = useLang();
   const [plans, setPlans] = useState([]);
   const [sub, setSub] = useState(null);
   const [loading, setLoading] = useState(true);
