@@ -88,28 +88,46 @@ def sharpen_image(image_bytes: bytes, subtle: bool = False) -> bytes:
 
 async def remove_background(image_bytes: bytes, bg_color: str = "ffffff") -> Tuple[bytes, bool]:
     """
-    Call Remove.bg API to remove background.
-    Simulation fallback: returns original bytes + failure flag.
+    Remove background using local rembg library.
     """
-    if settings.AI_SIMULATION or not settings.REMOVEBG_API_KEY:
+    if settings.AI_SIMULATION:
         logger.info("🛠️ SIMULATION: Mocking background removal")
-        return image_bytes, True # bytes (original, not sharpened), failed_flag
+        return image_bytes, True
 
     try:
-        compressed = compress_image(image_bytes)
-        import httpx  # Late import for dependency management
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.remove.bg/v1.0/removebg",
-                headers={"X-Api-Key": settings.REMOVEBG_API_KEY},
-                files={"image_file": ("photo.jpg", compressed, "image/jpeg")},
-                data={"size": "auto", "bg_color": bg_color},
-            )
-            response.raise_for_status()
-            return response.content, False
+        from rembg import remove
+        
+        # Load the image bytes
+        input_image = Image.open(io.BytesIO(image_bytes))
+        
+        # Remove background using rembg
+        output_image = remove(input_image)
+        
+        # Convert to RGB and apply background color
+        # create a solid color background
+        if bg_color.startswith('#'):
+            bg_color = bg_color[1:]
+        
+        r = int(bg_color[0:2], 16) if len(bg_color) >= 6 else 255
+        g = int(bg_color[2:4], 16) if len(bg_color) >= 6 else 255
+        b = int(bg_color[4:6], 16) if len(bg_color) >= 6 else 255
+            
+        background = Image.new("RGBA", output_image.size, (r, g, b, 255))
+        
+        # Paste the foreground from rembg over the solid background
+        background.paste(output_image, mask=output_image)
+        
+        # Convert to RGB output
+        final_img = background.convert("RGB")
+        
+        output = io.BytesIO()
+        final_img.save(output, format="JPEG", quality=95)
+        
+        return output.getvalue(), False
     except Exception as e:
-        logger.warning("Remove.bg failed: %s. Returning pristine original.", e)
+        logger.warning("rembg failed: %s. Returning pristine original.", e)
         return image_bytes, True
+
 
 
 async def enhance_photo(image_bytes: bytes) -> Tuple[bytes, bool]:
@@ -155,12 +173,13 @@ def image_to_base64(image_bytes: bytes) -> str:
     return base64.b64encode(image_bytes).decode("utf-8")
 
 
-async def full_photo_pipeline(image_bytes: bytes, subtle_only: bool = False, skip_editing: bool = False) -> dict:
+async def full_photo_pipeline(image_bytes: bytes, subtle_only: bool = False, skip_editing: bool = False, remove_bg: bool = True) -> dict:
     """
-    Photo processing pipeline (v2 — background removal REMOVED):
+    Photo processing pipeline:
     1. Compress original to Instagram-safe size
-    2. Sharpen & subtle colour/contrast lift (fixes blurry phone pics)
-    3. Optional: Pro enhancement via Photoroom (only if API key is valid)
+    2. Optional: Remove background (using rembg) before sharpening
+    3. Sharpen & subtle colour/contrast lift (fixes blurry phone pics)
+    4. Optional: Pro enhancement via Photoroom (only if API key is valid)
 
     If skip_editing is True, it ONLY compresses and returns the original.
     """
@@ -183,6 +202,16 @@ async def full_photo_pipeline(image_bytes: bytes, subtle_only: bool = False, ski
             "is_skipped": True,
             "vision_failed": False
         }
+
+    working_bytes = compressed_bytes
+
+    if remove_bg and settings.FEATURE_ENABLE_BG_REMOVAL:
+        logger.info("Pipeline: Removing background with rembg...")
+        bg_removed_bytes, bg_failed = await remove_background(working_bytes)
+        if not bg_failed:
+            working_bytes = bg_removed_bytes
+            # Re-open the image from the background-removed bytes
+            img = Image.open(io.BytesIO(working_bytes))
 
     # Step 2: Sharpen + colour lift — always subtle to keep product looking real
     # Refactor A1.3: Apply sharpening to the PIL object directly to avoid re-encoding
