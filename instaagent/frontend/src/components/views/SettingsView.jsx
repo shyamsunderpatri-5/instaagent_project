@@ -63,7 +63,7 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
       // Update global language immediately
       if (form.language !== user?.language) {
         setLang(form.language);
-        localStorage.setItem("ia_lang", form.language);
+        localStorage.setItem("instaagent_lang", form.language);
       }
       if (onUserUpdate) onUserUpdate(updated.user || updated);
     } catch (e) {
@@ -191,7 +191,7 @@ export const SettingsView = ({ user, token, onUserUpdate }) => {
               patch("language", e.target.value);
               // Instant preview — will also save on handleSave
               setLang(e.target.value);
-              localStorage.setItem("ia_lang", e.target.value);
+              localStorage.setItem("instaagent_lang", e.target.value);
             }}
             style={inputStyle}
           >

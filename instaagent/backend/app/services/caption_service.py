@@ -52,8 +52,8 @@ async def generate_caption(
     if settings.AI_SIMULATION or not settings.ANTHROPIC_API_KEY:
         print(f"🛠️ SIMULATION: Mocking caption for {product_name}")
         return {
-            "caption_hindi": f"✨ हमारा नया {product_name}! बहुत ही सुंदर और प्रीमियम क्वालिटी। आज ही ऑर्डर करें! {additional_info}",
-            "caption_english": f"✨ Our new {product_name}! Beautiful craftsmanship and premium quality. Order yours today! {additional_info}",
+            "caption_hindi": f"✨ हमारा नया {product_name}! बहुत ही सुंदर और प्रीमियम क्वालिटी। आज ही ऑर्डर करें! {additional_info}" if language == "hi" else f"✨ Our new {product_name}! Beautiful craftsmanship and premium quality. Order yours today! {additional_info}",
+            "caption_english": "",
             "hashtags": ["#instaagent", "#smallbusiness", f"#{product_type}", "#premium", "#india"],
             "cta": "DM to Order",
             "best_time_to_post": "Evening 7 PM",
@@ -94,10 +94,9 @@ async def generate_caption(
 
     Return ONLY this JSON structure:
     {{
-      "caption_hindi": "Captivating and emotional Hindi caption (Devanagari). Use vibrant emojis. Highlight 2 key benefits. End with a strong Call-to-Action.",
-      "caption_english": "SEO-friendly English caption. Premium tone. Use curiosity-driven opening. Clear value proposition. End with CTA.",
+      "caption_main": "Captivating and emotional caption exclusively in {lang_name} language. Use vibrant emojis. Highlight 2 key benefits. End with a strong Call-to-Action.",
       "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5", "#tag6", "#tag7", "#tag8", "#tag9", "#tag10", "#tag11", "#tag12", "#tag13", "#tag14", "#tag15", "#tag16", "#tag17", "#tag18", "#tag19", "#tag20"],
-      "cta": "Short Hindi CTA like 'DM karo / Order karo'",
+      "cta": "Short CTA in {lang_name} like 'DM to order'",
       "best_time_to_post": "Morning 9am / Evening 7pm / Night 9pm",
       "caption_short": "One punchy line for Stories in {lang_name}"
     }}"""
@@ -112,12 +111,20 @@ async def generate_caption(
         # Clean up possible markdown junk
         raw = re.sub(r"^```json\s*", "", raw)
         raw = re.sub(r"\s*```$", "", raw)
-        return json.loads(raw)
+        data = json.loads(raw)
+        
+        # Backward compatibility: store the main caption in 'caption_hindi' column 
+        # (which is the column published to Instagram) and leave 'caption_english' empty
+        if "caption_main" in data:
+            data["caption_hindi"] = data.pop("caption_main")
+            data["caption_english"] = ""
+            
+        return data
     except Exception as e:
         print(f"⚠️ Anthropic caption failed: {e}. Returning mock.")
         return {
-            "caption_hindi": f"✨ {product_name} - प्रीमियम क्वालिटी। ऑर्डर करने के लिए मैसेज करें।",
-            "caption_english": f"✨ {product_name} - Premium quality. DM to order now.",
+            "caption_hindi": f"✨ {product_name} - {'प्रीमियम क्वालिटी। ऑर्डर करने के लिए मैसेज करें।' if language == 'hi' else 'Premium quality. DM to order now.'}",
+            "caption_english": "",
             "hashtags": ["#instaagent", "#shopping"],
             "cta": "DM to Order",
             "best_time_to_post": "Now",
