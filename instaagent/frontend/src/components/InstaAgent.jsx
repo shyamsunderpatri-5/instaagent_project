@@ -82,6 +82,16 @@ function InstaAgentContent() {
     }
   }, [fetchBase]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("instagram") === "connected") {
+        setView("settings");
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+        show(t ? t("settings.instagram_connected") : "Instagram Connected!", "success");
+    }
+  }, [show]);
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);

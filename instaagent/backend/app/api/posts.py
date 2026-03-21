@@ -28,7 +28,8 @@ async def create_post(
     product_name: str = Form(..., description="Product name in Hindi or English"),
     product_type: str = Form(default="other", description="jewellery|clothing|food|handmade|other"),
     additional_info: str = Form(default="", description="Price, materials, offers, festival"),
-    is_enhanced: bool = Form(default=True, description="Enable AI enhancement"),
+    is_enhanced: bool = Form(default=True, description="Enable AI sharpening & color lift"),
+    remove_bg: bool = Form(default=False, description="Enable local background removal"),
     is_carousel_duo: bool = Form(default=False, description="Generate original + enhanced duo"),
     current_user: dict = Depends(get_current_user),
     _quota: None = Depends(check_post_quota),
@@ -98,6 +99,7 @@ async def create_post(
         language=current_user.get("language", "hi"),
         additional_info=additional_info,
         is_enhanced=is_enhanced,
+        remove_bg=remove_bg,
         is_carousel_duo=is_carousel_duo,
     )
 
@@ -112,6 +114,7 @@ async def bulk_create_posts(
     photos: List[UploadFile] = File(...),
     product_names: str = Form(..., description="Comma separated product names"),
     is_enhanced: bool = Form(default=True),
+    remove_bg: bool = Form(default=False),
     current_user: dict = Depends(get_current_user),
     _quota: None = Depends(check_post_quota),
 ):
@@ -146,7 +149,7 @@ async def bulk_create_posts(
         process_photo_task.delay(
             post_id=post_id, user_id=user_id, telegram_id=current_user.get("telegram_id"),
             original_photo_url=url, product_name=name, language=current_user.get("language", "hi"),
-            is_enhanced=is_enhanced
+            is_enhanced=is_enhanced, remove_bg=remove_bg
         )
         results.append(post_id)
 

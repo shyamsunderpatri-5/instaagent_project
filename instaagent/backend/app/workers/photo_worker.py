@@ -38,6 +38,7 @@ def process_photo_task(
     language: str,
     additional_info: str,
     is_enhanced: bool = True,
+    remove_bg: bool = False,
     is_carousel_duo: bool = False,
 ):
     try:
@@ -53,6 +54,7 @@ def process_photo_task(
             language=language,
             additional_info=additional_info,
             is_enhanced=is_enhanced,
+            remove_bg=remove_bg,
             is_carousel_duo=is_carousel_duo,
         ))
     except Exception as exc:
@@ -80,6 +82,7 @@ async def _process_photo_async(
     language: str,
     additional_info: str,
     is_enhanced: bool = True,
+    remove_bg: bool = False,
     is_carousel_duo: bool = False,
 ):
     supabase = get_supabase()
@@ -100,8 +103,13 @@ async def _process_photo_async(
     # Step 2 & 3: Photo processing pipeline ────────────────────────────────
     _log("STEP2_PIPELINE", post_id, f"calling full_photo_pipeline skip_editing={not is_enhanced}")
     try:
-        # if is_enhanced is False, we skip all filters/sharpening to keep original
-        pipeline_result = await full_photo_pipeline(original_bytes, skip_editing=not is_enhanced)
+        # Subtle editing sharpening remains if is_enhanced is False.
+        # Background removal is now independent.
+        pipeline_result = await full_photo_pipeline(
+            original_bytes, 
+            skip_editing=not is_enhanced,
+            remove_bg=remove_bg
+        )
         edited_bytes = pipeline_result["edited_bytes"]
         enhance_failed = pipeline_result.get("enhance_failed", False)
         
@@ -159,11 +167,15 @@ async def _process_photo_async(
     except Exception as e:
         # Non-fatal: caption failure should not stop the pipeline
         _log("STEP5_CAPTION", post_id, f"WARNING (non-fatal): {e} — using default caption", error=True)
+        # Sync fallback with the requested language (ensure only 1 caption shown)
+        fallback_hi = f"✨ {product_name} — प्रीमियम क्वालिटी। ऑर्डर के लिए DM करें।"
+        fallback_en = f"✨ {product_name} — Premium quality. DM to order!"
+        
         caption_data = {
-            "caption_hindi": f"✨ {product_name} — प्रीमियम क्वालिटी। ऑर्डर के लिए DM करें।",
-            "caption_english": f"✨ {product_name} — Premium quality. DM to order!",
+            "caption_hindi": fallback_hi if language == "hi" else fallback_en,
+            "caption_english": "",
             "hashtags": ["#instaagent", "#smallbusiness", "#india"],
-            "cta": "DM to Order",
+            "cta": "DM to Order" if language == "en" else "DM करें",
         }
 
     # ── Step 6: Upload edited photo(s) to Supabase Storage ────────────────────

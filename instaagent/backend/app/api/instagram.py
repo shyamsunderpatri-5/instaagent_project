@@ -88,7 +88,7 @@ async def connect_instagram(current_user: dict = Depends(get_current_user)):
     # Simulation Bypass: Skip Meta and redirect to our own callback with a mock code
     if settings.INSTAGRAM_SIMULATE:
         mock_callback = (
-            f"{settings.FRONTEND_URL}/api/v1/instagram/callback"
+            f"http://localhost:8000/api/v1/instagram/callback"
             f"?code=mock_code_{secrets.token_hex(8)}"
             f"&state={state}"
         )
@@ -151,7 +151,7 @@ async def instagram_callback(code: str, state: str):
 
     return RedirectResponse(
         url=(
-            f"{settings.FRONTEND_URL}/settings"
+            f"{settings.FRONTEND_URL}"
             f"?instagram=connected&username={profile['username']}"
         )
     )

@@ -133,7 +133,18 @@ class AggregatorService:
             "followers_count": followers,
             "following_count": following
         }
-        supabase.table("aggregator_accounts").update(update_data).eq("id", str(aggregator_account_id)).execute()
+        try:
+            supabase.table("aggregator_accounts").update(update_data).eq("id", str(aggregator_account_id)).execute()
+        except Exception as e:
+            logger.error("Failed to update status and metrics for account %s (likely missing schema columns): %s", aggregator_account_id, e)
+            try:
+                # Absolute minimal fallback to just register that a sync happened
+                fallback_data = {
+                    "last_synced_at": datetime.now(timezone.utc).isoformat()
+                }
+                supabase.table("aggregator_accounts").update(fallback_data).eq("id", str(aggregator_account_id)).execute()
+            except Exception as inner_e:
+                logger.error("Fallback status update failed for %s: %s", aggregator_account_id, inner_e)
         
         return saved_count
 

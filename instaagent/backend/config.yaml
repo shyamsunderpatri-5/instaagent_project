@@ -7,8 +7,11 @@ FEATURE_ENABLE_REELS: false
 FEATURE_ENABLE_STORIES: true
 
 # App Settings
-INSTAGRAM_SIMULATE: true
+INSTAGRAM_SIMULATE: false
 FREE_TRIAL_POSTS: 5
 
 # WhatsApp Forwarding Toggle (Stub)
 WHATSAPP_FORWARD_ENABLED: true
+
+# Set a higher rate limit for WhatsApp photos (default was 5/hour)
+WHATSAPP_RATE_LIMIT_PHOTOS: 50

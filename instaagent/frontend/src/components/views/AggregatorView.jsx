@@ -161,6 +161,24 @@ export const AggregatorView = ({ token, user }) => {
       show(err.message, "error");
     }
   };
+  const isAggregatorPlan = user?.plan === "aggregator" || user?.is_admin;
+
+  if (!loading && !isAggregatorPlan) {
+    return (
+      <div className="fade-up" style={{ padding: 40, maxWidth: 600, margin: "100px auto", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", padding: 24, borderRadius: "50%", background: `${T.primary}15`, color: T.primary, marginBottom: 24 }}>
+          {I.zap}
+        </div>
+        <h1 style={{ fontFamily: T.fontHead, fontSize: 32, fontWeight: 800, marginBottom: 16 }}>Enterprise Aggregator</h1>
+        <p style={{ fontSize: 16, color: T.textMuted, lineHeight: 1.6, marginBottom: 32 }}>
+          Track competitors, generate AI content strategies, and analyze market trends. This feature is exclusive to the <strong>Enterprise Aggregator Plan</strong>.
+        </p>
+        <button onClick={() => window.location.href = '/dashboard'} style={{ background: T.primary, color: "#fff", border: "none", borderRadius: 12, padding: "14px 32px", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          Go to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   if (loading) return <div style={{ display: "flex", justifyContent: "center", padding: 100 }}><Spinner size={32} /></div>;
 

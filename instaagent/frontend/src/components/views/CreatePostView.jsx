@@ -19,7 +19,9 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   const [error,       setError]       = useState("");
   // isEnhanced defaults to FALSE — background removal was causing bad results
   const [isEnhanced,  setIsEnhanced]  = useState(false);
+  const [removeBg,    setRemoveBg]    = useState(false);
   const [postData,    setPostData]    = useState(null);
+  const [selectedPhoto, setSelectedPhoto] = useState("enhanced"); // "original" | "enhanced"
   const [scheduling,  setScheduling]  = useState(false);
   const [publishing,  setPublishing]  = useState(false);
   const [scheduleMode,setScheduleMode]= useState(null); // null | "settings" | "custom"
@@ -97,6 +99,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
       fd.append("product_type", category);
       fd.append("additional_info", info);
       fd.append("is_enhanced", isEnhanced);
+      fd.append("remove_bg", removeBg);
       fd.append("is_carousel_duo", false);
       const res = await fetch(`${API}/api/v1/posts/create`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd
@@ -113,7 +116,8 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
     if (!postData?.post_id) return;
     setPublishing(true);
     try {
-      const res = await fetch(`${API}/api/v1/posts/${postData.post_id}/publish-now`, {
+      const photoUrl = selectedPhoto === "original" ? postData.original_photo_url : postData.edited_photo_url;
+      const res = await fetch(`${API}/api/v1/posts/${postData.post_id}/publish-now?image_url=${encodeURIComponent(photoUrl)}`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -130,7 +134,8 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
     if (!postData?.post_id) return;
     setScheduling(true);
     try {
-      const res = await fetch(`${API}/api/v1/posts/${postData.post_id}/schedule-from-settings`, {
+      const photoUrl = selectedPhoto === "original" ? postData.original_photo_url : postData.edited_photo_url;
+      const res = await fetch(`${API}/api/v1/posts/${postData.post_id}/schedule-from-settings?image_url=${encodeURIComponent(photoUrl)}`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -151,8 +156,9 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
       // Force it to be interpreted as IST (+05:30) regardless of browser timezone
       const istString = customDt + "+05:30";
       const utcIso = new Date(istString).toISOString();
+      const photoUrl = selectedPhoto === "original" ? postData.original_photo_url : postData.edited_photo_url;
       const res = await fetch(
-        `${API}/api/v1/posts/${postData.post_id}/schedule?scheduled_at=${encodeURIComponent(utcIso)}`,
+        `${API}/api/v1/posts/${postData.post_id}/schedule?scheduled_at=${encodeURIComponent(utcIso)}&image_url=${encodeURIComponent(photoUrl)}`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -173,7 +179,7 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
   const reset = () => {
     setStep(1); setPhotos([]); setProduct(""); setInfo(""); setError("");
     setPostData(null); setScheduleMode(null); setCustomDt(""); setActionDone(null);
-    setIsEnhanced(false);
+    setIsEnhanced(false); setRemoveBg(false); setSelectedPhoto("enhanced");
   };
 
   const inputStyle = { width: "100%", background: T.surfaceAlt, border: `1px solid ${T.borderLight}`, borderRadius: 10, padding: "11px 14px", color: T.text, fontSize: 14, boxSizing: "border-box" };
@@ -264,6 +270,14 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
             <Toggle value={isEnhanced} onChange={setIsEnhanced} />
           </div>
 
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, background: T.surfaceAlt, padding: "12px 16px", borderRadius: 12, border: `1px solid ${T.border}` }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Remove Background (AI)</div>
+              <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>Automatically make background clean white.</div>
+            </div>
+            <Toggle value={removeBg} onChange={setRemoveBg} />
+          </div>
+
           <button
             onClick={runProcess}
             disabled={photos.length === 0 || !product}
@@ -305,19 +319,27 @@ export const CreatePostView = ({ user, token, onPostCreated }) => {
             <>
               {/* Photo Comparison */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 22 }}>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>Original Photo</div>
-                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${T.border}`, height: 180, background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div 
+                  onClick={() => setSelectedPhoto("original")}
+                  style={{ cursor: "pointer", opacity: selectedPhoto === "original" ? 1 : 0.6, transition: "all .2s" }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: selectedPhoto === "original" ? T.primary : T.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    {selectedPhoto === "original" && "✓ "}Original Photo
+                  </div>
+                  <div style={{ borderRadius: 12, overflow: "hidden", border: `2px solid ${selectedPhoto === "original" ? T.primary : T.border}`, height: 180, background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {postData?.original_photo_url
                       ? <img src={postData.original_photo_url} alt="Original" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       : <div style={{ color: T.textMuted, fontSize: 12 }}>Loading...</div>}
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.primary, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    {isEnhanced ? "AI Enhanced" : "Ready to Post"}
+                <div 
+                  onClick={() => postReady && setSelectedPhoto("enhanced")}
+                  style={{ cursor: postReady ? "pointer" : "wait", opacity: selectedPhoto === "enhanced" ? 1 : 0.6, transition: "all .2s" }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, color: selectedPhoto === "enhanced" ? T.primary : T.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    {selectedPhoto === "enhanced" && postReady && "✓ "}{isEnhanced || removeBg ? "AI Processed" : "Ready to Post"}
                   </div>
-                  <div style={{ borderRadius: 12, overflow: "hidden", border: `2px solid ${postReady ? T.primary : T.border}`, height: 180, background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ borderRadius: 12, overflow: "hidden", border: `2px solid ${selectedPhoto === "enhanced" ? T.primary : T.border}`, height: 180, background: T.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {postData?.edited_photo_url
                       ? <img src={postData.edited_photo_url} alt="Enhanced" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       : (

@@ -19,7 +19,7 @@ export const LanguageProvider = ({ children, user, token, onUserUpdate }) => {
       const saved = localStorage.getItem("instaagent_lang");
       if (saved) return saved;
     }
-    return user?.language || "hi";
+    return user?.language || "en";
   });
 
   // Translation helper

@@ -61,7 +61,10 @@ async def add_account(
         sync_aggregator_posts.delay(new_acc["id"])
         return new_acc
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to add account: {str(e)}")
+        error_msg = str(e)
+        if "PGRST116" in error_msg or "Conflict" in error_msg or "23505" in error_msg:
+            raise HTTPException(status_code=400, detail="You are already tracking this account.")
+        raise HTTPException(status_code=400, detail=f"Failed to add account: {error_msg}")
 
 @router.delete("/accounts/{account_id}")
 async def delete_account(
